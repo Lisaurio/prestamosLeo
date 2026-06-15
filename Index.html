@@ -200,6 +200,7 @@
   </div>
 
   <div id="app-shell">
+    <div id="offline-banner" style="display:none;background:var(--warning);color:#000;text-align:center;padding:6px 12px;font-size:13px;font-weight:500">📡 Sin conexión — los cambios se sincronizarán automáticamente</div>
     <header>
       <button class="btn-icon" id="btn-back" style="display:none" onclick="goBack()">←</button>
       <h2 id="header-title">Dashboard</h2>
@@ -433,6 +434,34 @@ firebase.initializeApp({
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+/* Offline persistence */
+var _offline = !navigator.onLine;
+db.enablePersistence({synchronizeTabs:true}).catch(function(err) {
+  if (err.code === 'failed-precondition') console.warn('Persistencia no disponible (múltiples pestañas)');
+  else if (err.code === 'unimplemented') console.warn('Persistencia no soportada en este navegador');
+});
+window.addEventListener('online', function() {
+  _offline = false;
+  document.getElementById('offline-banner').style.display = 'none';
+  toast('📶 Conexión restablecida — sincronizando datos', 'success');
+  recargarPaginaActual();
+});
+window.addEventListener('offline', function() {
+  _offline = true;
+  document.getElementById('offline-banner').style.display = 'block';
+  toast('📶 Sin conexión — los cambios se guardarán localmente', 'warning');
+});
+
+function msgExito(texto) { return { msg: _offline ? '📦 ' + texto + ' — se sincronizará cuando haya conexión' : texto + ' ✅', tipo: _offline ? 'warning' : 'success' }; }
+
+function recargarPaginaActual() {
+  var page = _currentPage;
+  if (page === 'prestamos') { cargarPrestamos(); }
+  else if (page === 'dashboard') { cargarDashboard(); }
+  else if (page === 'reportes') { cargarReporte(); }
+  else if (page === 'clientes') { cargarClientes(); }
+}
 
 var _clientes = [];
 var _clienteActual = null;
@@ -790,7 +819,7 @@ function eliminarClienteActual() {
   if (!confirm('¿Eliminar a ' + c.nombre + '?\n\nLos préstamos de este cliente se van a mantener pero van a quedar sin referencia.')) return;
   if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
   deleteDoc('clientes/' + c.id, function() {
-    toast('Cliente eliminado', 'success');
+    var _r = msgExito('Cliente eliminado'); toast(_r.msg, _r.tipo);
     _clientes = [];
     navigate('clientes');
   });
@@ -823,7 +852,7 @@ function guardarCliente(e) {
   prom.then(function() {
     btn._enviando = false;
     mostrarLoading(false);
-    toast('Cliente guardado', 'success');
+    var _r = msgExito('Cliente guardado'); toast(_r.msg, _r.tipo);
     _clientes = [];
     navigate('clientes');
   }).catch(function(err) {
@@ -1026,7 +1055,7 @@ function pagarPrestamo(id) {
     updateDoc('prestamos/' + id, { estado: 'Pagado', fecha_pago: hoy }, function() {
       addDoc('pagos', { prestamo_id: id, monto: p.total, fecha: hoy }, function() {
         actualizarBadgePrestamos();
-        toast('Préstamo marcado como pagado ✅', 'success');
+        toast(_offline ? 'Cambio guardado 📦 — se sincronizará cuando haya conexión' : 'Préstamo marcado como pagado ✅', _offline ? 'warning' : 'success');
         cargarPrestamos();
         if (document.getElementById('page-dashboard').classList.contains('active')) cargarDashboard();
       });
@@ -1214,7 +1243,7 @@ function guardarTasas(e) {
   }).then(function() {
     btn._enviando = false;
     mostrarLoading(false);
-    toast('Tasas guardadas ✅', 'success');
+    var _r = msgExito('Tasas guardadas'); toast(_r.msg, _r.tipo);
   }).catch(function(err) {
     btn._enviando = false;
     mostrarLoading(false);
@@ -1236,7 +1265,7 @@ function guardarMensajes(e) {
   }).then(function() {
     btn._enviando = false;
     mostrarLoading(false);
-    toast('Mensajes guardados ✅', 'success');
+    var _r = msgExito('Mensajes guardados'); toast(_r.msg, _r.tipo);
   }).catch(function(err) {
     btn._enviando = false;
     mostrarLoading(false);
@@ -1349,7 +1378,7 @@ function removeCustomField(btn) {
       btn._enviando = false;
       mostrarLoading(false);
       cerrarEditarPrestamo();
-      toast('Préstamo actualizado ✅', 'success');
+      toast(_offline ? 'Cambio guardado 📦 — se sincronizará cuando haya conexión' : 'Préstamo actualizado ✅', _offline ? 'warning' : 'success');
       verPrestamo(id);
     }).catch(function(err) {
       btn._enviando = false;
