@@ -466,11 +466,15 @@ auth.onAuthStateChanged(function(user) {
 
 function handleLogin(e) {
   e.preventDefault();
+  var btn = document.querySelector('#form-login button');
+  if (btn._enviando) return;
+  btn._enviando = true;
   var email = document.getElementById('login-email').value.trim();
   var pass = document.getElementById('login-pass').value;
-  if (!email || !pass) return;
+  if (!email || !pass) { btn._enviando = false; return; }
   mostrarLoading(true);
   auth.signInWithEmailAndPassword(email, pass).catch(function(err) {
+    btn._enviando = false;
     mostrarLoading(false);
     if (err.code === 'auth/user-not-found') {
       toast('Usuario no encontrado. Verificá el email o creá el usuario en Firebase Console', 'error');
@@ -783,6 +787,9 @@ function eliminarClienteActual() {
 
 function guardarCliente(e) {
   e.preventDefault();
+  var btn = document.querySelector('#form-cliente button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
   var extra = {};
   document.querySelectorAll('#custom-fields .custom-field-row').forEach(function(row) {
     var name = row.querySelector('.cf-name').value.trim();
@@ -799,21 +806,20 @@ function guardarCliente(e) {
     notas: document.getElementById('cliente-notas').value.trim(),
     extra_campos: JSON.stringify(extra)
   };
-  if (!data.nombre) { toast('El nombre es obligatorio', 'error'); return; }
-  if (id) {
-    updateDoc('clientes/' + id, data, function() {
-      toast('Cliente actualizado', 'success');
-      _clientes = [];
-      navigate('clientes');
-    });
-  } else {
-    data.fecha_registro = new Date().toISOString().split('T')[0];
-    addDoc('clientes', data, function(newId) {
-      toast('Cliente guardado', 'success');
-      _clientes = [];
-      navigate('clientes');
-    });
-  }
+  if (!data.nombre) { btn._enviando = false; toast('El nombre es obligatorio', 'error'); return; }
+  mostrarLoading(true);
+  var prom = id ? db.doc('clientes/' + id).update(data) : (data.fecha_registro = new Date().toISOString().split('T')[0], db.collection('clientes').add(data));
+  prom.then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast('Cliente guardado', 'success');
+    _clientes = [];
+    navigate('clientes');
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
+  });
 }
 
 function verCliente(id) {
@@ -828,7 +834,7 @@ function verCliente(id) {
     var html = '<h2>' + esc(c.nombre) + '</h2>';
     html += '<div class="phone">📱 ';
     if (c.telefono) {
-      html += '<a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500">' + esc(c.telefono) + ' 💬</a>';
+      html += '<a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:6px">' + esc(c.telefono) + '<svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>';
     } else {
       html += 'Sin teléfono';
     }
@@ -963,7 +969,7 @@ function verPrestamo(id) {
       clienteSection.style.display = 'block';
       var ch = '<div class="cliente-info-grid">';
       ch += '<div class="cliente-info-item"><div class="lbl">Nombre</div><div><a href="javascript:verCliente(\'' + c.id + '\')" style="color:var(--primary);font-weight:500">' + esc(c.nombre) + '</a></div></div>';
-      if (c.telefono) ch += '<div class="cliente-info-item"><div class="lbl">Teléfono</div><div><a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--success);font-weight:500">📱 ' + esc(c.telefono) + '</a></div></div>';
+      if (c.telefono) ch += '<div class="cliente-info-item"><div class="lbl">Teléfono</div><div><a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--success);font-weight:500;display:inline-flex;align-items:center;gap:4px">📱 ' + esc(c.telefono) + '<svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a></div></div>';
       if (c.dni) ch += '<div class="cliente-info-item"><div class="lbl">DNI</div><div>' + esc(c.dni) + '</div></div>';
       if (c.direccion) ch += '<div class="cliente-info-item"><div class="lbl">Dirección</div><div>' + esc(c.direccion) + '</div></div>';
       ch += '</div>';
@@ -1067,12 +1073,15 @@ function calcularPrestamo() {
 
 function guardarPrestamo(e) {
   e.preventDefault();
+  var btn = document.querySelector('#form-prestamo button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
   var clienteId = document.getElementById('prestamo-cliente').value;
   var monto = parseFloat(document.getElementById('prestamo-monto').value);
   var plazoEl = document.querySelector('input[name="plazo"]:checked');
-  if (!clienteId) { toast('Seleccioná un cliente', 'error'); return; }
-  if (!monto || monto < 1) { toast('Ingresá un monto válido', 'error'); return; }
-  if (!plazoEl) { toast('Seleccioná un plazo', 'error'); return; }
+  if (!clienteId) { btn._enviando = false; toast('Seleccioná un cliente', 'error'); return; }
+  if (!monto || monto < 1) { btn._enviando = false; toast('Ingresá un monto válido', 'error'); return; }
+  if (!plazoEl) { btn._enviando = false; toast('Seleccioná un plazo', 'error'); return; }
   var dias = parseInt(plazoEl.value);
   var c = _clientes.find(function(x) { return x.id == clienteId; });
   var tasa;
@@ -1083,7 +1092,8 @@ function guardarPrestamo(e) {
   var total = monto + (monto * tasa / 100);
   var fechaInicio = new Date();
   var fechaVence = new Date(fechaInicio.getTime() + dias * 24 * 60 * 60 * 1000);
-  addDoc('prestamos', {
+  mostrarLoading(true);
+  db.collection('prestamos').add({
     cliente_id: clienteId,
     monto: monto,
     tasa: tasa,
@@ -1094,9 +1104,15 @@ function guardarPrestamo(e) {
     fecha_pago: '',
     estado: 'Pendiente',
     notas: ''
-  }, function() {
+  }).then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
     toast('Préstamo registrado ✅', 'success');
     navigate('prestamos');
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
   });
 }
 
@@ -1158,24 +1174,44 @@ function cargarConfig() {
 
 function guardarTasas(e) {
   e.preventDefault();
-  setDoc('config/settings', {
+  var btn = document.querySelector('#form-tasas button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  mostrarLoading(true);
+  db.doc('config/settings').set({
     tasa_7d: parseFloat(document.getElementById('cfg-tasa-7d').value),
     tasa_15d: parseFloat(document.getElementById('cfg-tasa-15d').value),
     tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value)
-  }, function() {
+  }).then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
     toast('Tasas guardadas ✅', 'success');
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
   });
 }
 
 function guardarMensajes(e) {
   e.preventDefault();
-  setDoc('config/settings', {
+  var btn = document.querySelector('#form-mensajes button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  mostrarLoading(true);
+  db.doc('config/settings').set({
     tasa_7d: parseFloat(document.getElementById('cfg-tasa-7d').value || 40),
     tasa_15d: parseFloat(document.getElementById('cfg-tasa-15d').value || 60),
     tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value || 80),
     mensaje_recordatorio: document.getElementById('cfg-msg-recordatorio').value.trim()
-  }, function() {
+  }).then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
     toast('Mensajes guardados ✅', 'success');
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
   });
 }
 
