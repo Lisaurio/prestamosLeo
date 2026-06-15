@@ -290,6 +290,12 @@
         <div id="prestamos-list"></div>
       </div>
 
+      <div id="page-prestamo-detalle" class="page">
+        <div class="back-row"><button onclick="navigate('prestamos')">←</button><span style="font-weight:600;font-size:18px">Detalle de Préstamo</span></div>
+        <div id="prestamo-detalle-card" class="section"></div>
+        <div id="prestamo-detalle-cliente" class="section" style="display:none"><h3>👤 Datos del Cliente</h3><div id="prestamo-detalle-cliente-body"></div></div>
+      </div>
+
       <div id="page-nuevo-prestamo" class="page">
         <div class="back-row"><button onclick="volverDeNuevoPrestamo()">←</button><span style="font-weight:600;font-size:18px">Nuevo Préstamo</span></div>
         <div class="section">
@@ -375,6 +381,17 @@
           </form>
         </div>
         <div class="config-section">
+          <h3>💬 Mensajes de WhatsApp</h3>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Usá <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{nombre}</code> <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{telefono}</code> como marcadores</p>
+          <form id="form-mensajes" onsubmit="return guardarMensajes(event)">
+            <div class="form-group">
+              <label>📲 Mensaje de recordatorio</label>
+              <textarea id="cfg-msg-recordatorio" rows="3" style="font-size:14px" placeholder="Ej: Hola {nombre}, te recordamos tu préstamo."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Guardar Mensajes</button>
+          </form>
+        </div>
+        <div class="config-section">
           <h3>🔑 Cambiar contraseña</h3>
           <p style="font-size:14px;color:var(--text2);margin-bottom:12px">La contraseña se cambia desde la consola de Firebase (Authentication → Usuarios)</p>
         </div>
@@ -437,6 +454,9 @@ auth.onAuthStateChanged(function(user) {
   if (user) {
     document.getElementById('page-login').classList.remove('active');
     document.getElementById('app-shell').classList.add('active');
+    getDoc('config/settings', function(cfg) {
+      window._config = cfg || {};
+    });
     cargarDashboard();
   } else {
     document.getElementById('app-shell').classList.remove('active');
@@ -543,11 +563,11 @@ function navigate(page) {
   if (el) el.classList.add('active');
   var titles = {
     dashboard: 'Dashboard', clientes: 'Clientes', 'cliente-form': 'Cliente',
-    'cliente-detalle': 'Detalle', prestamos: 'Pr\u00e9stamos', 'nuevo-prestamo': 'Nuevo Pr\u00e9stamo',
-    reportes: 'Reportes', config: 'Config'
+    'cliente-detalle': 'Detalle', prestamos: 'Pr\u00e9stamos', 'prestamo-detalle': 'Detalle',
+    'nuevo-prestamo': 'Nuevo Pr\u00e9stamo', reportes: 'Reportes', config: 'Config'
   };
   document.getElementById('header-title').textContent = titles[page] || 'Mis Pr\u00e9stamos';
-  var showBack = page === 'cliente-form' || page === 'cliente-detalle' || page === 'nuevo-prestamo';
+  var showBack = page === 'cliente-form' || page === 'cliente-detalle' || page === 'nuevo-prestamo' || page === 'prestamo-detalle';
   document.getElementById('btn-back').style.display = showBack ? '' : 'none';
   document.querySelectorAll('.nav-item').forEach(function(n) {
     n.classList.toggle('active', n.dataset.page === page);
@@ -563,7 +583,7 @@ function navigate(page) {
 
 function goBack() {
   if (_currentPage === 'cliente-form' || _currentPage === 'cliente-detalle') navigate('clientes');
-  else if (_currentPage === 'nuevo-prestamo') navigate('prestamos');
+  else if (_currentPage === 'nuevo-prestamo' || _currentPage === 'prestamo-detalle') navigate('prestamos');
   else navigate('dashboard');
 }
 
@@ -806,7 +826,13 @@ function verCliente(id) {
     _clienteActual = c;
     var ps = results[1] || [];
     var html = '<h2>' + esc(c.nombre) + '</h2>';
-    html += '<div class="phone">📱 ' + esc(c.telefono || 'Sin teléfono') + '</div>';
+    html += '<div class="phone">📱 ';
+    if (c.telefono) {
+      html += '<a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500">' + esc(c.telefono) + ' 💬</a>';
+    } else {
+      html += 'Sin teléfono';
+    }
+    html += '</div>';
     if (c.tasa_preferencial) html += '<div style="margin-top:6px;color:var(--warning);font-weight:500">⭐ Tasa preferencial: ' + c.tasa_preferencial + '%</div>';
     if (c.notas) html += '<div style="margin-top:6px;color:var(--text2);font-size:13px">📝 ' + esc(c.notas) + '</div>';
     var pendientes = ps.filter(function(p) { return p.estado === 'Pendiente'; });
@@ -890,7 +916,7 @@ function cargarPrestamos() {
       } else {
         rightHtml = '<button class="btn btn-success btn-sm" onclick="pagarPrestamo(\'' + p.id + '\')">✔ Pagado</button>';
       }
-      html += '<div class="list-item">';
+      html += '<div class="list-item" onclick="verPrestamo(\'' + p.id + '\')">';
       html += '<div class="info"><div class="name">' + esc(cmap[p.cliente_id] || 'Cliente') + '</div>';
       html += '<div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.dias_plazo + 'd · Vence: ' + p.fecha_vence + '</div></div>';
       html += '<div class="right">' + rightHtml + '</div></div>';
@@ -898,6 +924,64 @@ function cargarPrestamos() {
     html += '</div>';
     document.getElementById('prestamos-list').innerHTML = html;
   });
+}
+
+function verPrestamo(id) {
+  mostrarLoading(true);
+  getDocsParallel([db.doc('prestamos/' + id).get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var p = results[0];
+    if (!p) { toast('Préstamo no encontrado', 'error'); return; }
+    p.id = id;
+    var clientes = results[1] || [];
+    var c = clientes.find(function(x) { return x.id == p.cliente_id; });
+    var html = '<div class="resumen-card">';
+    html += '<div class="row" style="font-size:20px;font-weight:700;color:var(--primary)"><span>' + esc(c ? c.nombre : 'Cliente eliminado') + '</span><span>' + pesos(p.total) + '</span></div>';
+    html += '</div>';
+    html += '<div class="cliente-info-grid" style="margin-bottom:12px">';
+    html += '<div class="cliente-info-item"><div class="lbl">Monto prestado</div><div>' + pesos(p.monto) + '</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Tasa</div><div>' + p.tasa + '%</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Interés</div><div>' + pesos(p.total - p.monto) + '</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Plazo</div><div>' + p.dias_plazo + ' días</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Inicio</div><div>' + p.fecha_inicio + '</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Vence</div><div>' + p.fecha_vence + '</div></div>';
+    if (p.estado === 'Pagado') {
+      html += '<div class="cliente-info-item"><div class="lbl">Pagado el</div><div style="color:var(--success);font-weight:600">' + p.fecha_pago + '</div></div>';
+    }
+    html += '</div>';
+    var badge = p.estado === 'Pagado'
+      ? '<span class="status pagado" style="font-size:16px;padding:6px 16px">Pagado ✅</span>'
+      : '<span class="status pendiente" style="font-size:16px;padding:6px 16px">Pendiente ⏳</span>';
+    html += '<div style="text-align:center;margin-bottom:12px">' + badge + '</div>';
+    if (p.estado !== 'Pagado') {
+      html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Marcar como Pagado</button>';
+    }
+    document.getElementById('prestamo-detalle-card').innerHTML = html;
+
+    var clienteSection = document.getElementById('prestamo-detalle-cliente');
+    if (c) {
+      clienteSection.style.display = 'block';
+      var ch = '<div class="cliente-info-grid">';
+      ch += '<div class="cliente-info-item"><div class="lbl">Nombre</div><div><a href="javascript:verCliente(\'' + c.id + '\')" style="color:var(--primary);font-weight:500">' + esc(c.nombre) + '</a></div></div>';
+      if (c.telefono) ch += '<div class="cliente-info-item"><div class="lbl">Teléfono</div><div><a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--success);font-weight:500">📱 ' + esc(c.telefono) + '</a></div></div>';
+      if (c.dni) ch += '<div class="cliente-info-item"><div class="lbl">DNI</div><div>' + esc(c.dni) + '</div></div>';
+      if (c.direccion) ch += '<div class="cliente-info-item"><div class="lbl">Dirección</div><div>' + esc(c.direccion) + '</div></div>';
+      ch += '</div>';
+      document.getElementById('prestamo-detalle-cliente-body').innerHTML = ch;
+    } else {
+      clienteSection.style.display = 'none';
+    }
+    navigate('prestamo-detalle');
+  });
+}
+
+function whatsappUrl(c, plantilla) {
+  if (!c.telefono) return '#';
+  plantilla = plantilla || (window._config || {}).mensaje_recordatorio || 'Hola {nombre}, te recordamos tu pr\u00e9stamo.';
+  var texto = plantilla.replace(/\{nombre\}/g, c.nombre || '').replace(/\{telefono\}/g, c.telefono || '');
+  var tel = String(c.telefono).replace(/\D/g, '');
+  if (!tel.startsWith('54')) tel = '54' + tel;
+  return 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
 }
 
 function pagarPrestamo(id) {
@@ -1061,10 +1145,14 @@ function cargarReporte() {
 }
 
 function cargarConfig() {
+  mostrarLoading(true);
   getDoc('config/settings', function(cfg) {
+    mostrarLoading(false);
+    window._config = cfg || {};
     document.getElementById('cfg-tasa-7d').value = (cfg && cfg.tasa_7d) || 40;
     document.getElementById('cfg-tasa-15d').value = (cfg && cfg.tasa_15d) || 60;
     document.getElementById('cfg-tasa-30d').value = (cfg && cfg.tasa_30d) || 80;
+    document.getElementById('cfg-msg-recordatorio').value = (cfg && cfg.mensaje_recordatorio) || '';
   });
 }
 
@@ -1076,6 +1164,18 @@ function guardarTasas(e) {
     tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value)
   }, function() {
     toast('Tasas guardadas ✅', 'success');
+  });
+}
+
+function guardarMensajes(e) {
+  e.preventDefault();
+  setDoc('config/settings', {
+    tasa_7d: parseFloat(document.getElementById('cfg-tasa-7d').value || 40),
+    tasa_15d: parseFloat(document.getElementById('cfg-tasa-15d').value || 60),
+    tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value || 80),
+    mensaje_recordatorio: document.getElementById('cfg-msg-recordatorio').value.trim()
+  }, function() {
+    toast('Mensajes guardados ✅', 'success');
   });
 }
 
