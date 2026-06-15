@@ -77,9 +77,12 @@
 
     /* Modal de instalación */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
-    .modal-box { background: var(--card-bg, #fff); color: var(--text, #333); border-radius: 16px; padding: 28px 24px; max-width: 380px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,.3); white-space: pre-line; line-height: 1.7; }
+    .modal-box { background: var(--surface); color: var(--text); border-radius: 16px; padding: 28px 24px; max-width: 380px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,.3); white-space: pre-line; line-height: 1.7; }
     .modal-box h3 { margin: 0 0 12px 0; font-size: 18px; }
-    .modal-box .btn-cerrar { display: block; width: 100%; margin-top: 18px; padding: 12px; background: var(--primary, #007bff); color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; text-align: center; }
+    .modal-box .btn-cerrar { display: block; width: 100%; margin-top: 18px; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; text-align: center; }
+    .modal-box .form-group { margin-bottom: 12px; }
+    .modal-box .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 3px; color: var(--text); }
+    .modal-box .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; background: var(--bg); color: var(--text); }
     #content { flex: 1; overflow-y: auto; padding: 16px 16px calc(16px + var(--nav-h)); }
     .page { display: none; }
     .page.active { display: block; animation: fadeIn .25s ease; }
@@ -981,7 +984,10 @@ function verPrestamo(id) {
       : '<span class="status pendiente" style="font-size:16px;padding:6px 16px">Pendiente ⏳</span>';
     html += '<div style="text-align:center;margin-bottom:12px">' + badge + '</div>';
     if (p.estado !== 'Pagado') {
-      html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Marcar como Pagado</button>';
+      html += '<div style="display:flex;gap:8px;margin-bottom:8px">';
+      html += '<button class="btn btn-primary btn-block" onclick="abrirEditarPrestamo(\'' + id + '\')">✏ Editar</button>';
+      html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Pagado</button>';
+      html += '</div>';
     }
     document.getElementById('prestamo-detalle-card').innerHTML = html;
 
@@ -1287,6 +1293,71 @@ function removeCustomField(btn) {
     document.getElementById('modal-instalar').style.display = 'none';
   }
 
+  /* ===== Editar préstamo ===== */
+  var _editPrestamoId = null;
+
+  function abrirEditarPrestamo(id) {
+    _editPrestamoId = id;
+    mostrarLoading(true);
+    db.doc('prestamos/' + id).get().then(function(doc) {
+      mostrarLoading(false);
+      if (!doc.exists) { toast('Préstamo no encontrado', 'error'); return; }
+      var p = doc.data();
+      document.getElementById('edit-prestamo-monto').value = p.monto;
+      document.getElementById('edit-prestamo-tasa').value = p.tasa;
+      document.getElementById('edit-prestamo-dias').value = p.dias_plazo;
+      document.getElementById('edit-prestamo-inicio').value = p.fecha_inicio;
+      document.getElementById('edit-prestamo-vence').value = p.fecha_vence;
+      document.getElementById('modal-editar-prestamo').style.display = 'flex';
+    }).catch(function(err) {
+      mostrarLoading(false);
+      toast(err.message, 'error');
+    });
+  }
+
+  function cerrarEditarPrestamo() {
+    document.getElementById('modal-editar-prestamo').style.display = 'none';
+    _editPrestamoId = null;
+  }
+
+  function guardarEditarPrestamo(e) {
+    e.preventDefault();
+    var btn = document.querySelector('#form-editar-prestamo button[type="submit"]');
+    if (btn._enviando) return;
+    btn._enviando = true;
+    var id = _editPrestamoId;
+    if (!id) { btn._enviando = false; return; }
+    var monto = parseFloat(document.getElementById('edit-prestamo-monto').value);
+    var tasa = parseFloat(document.getElementById('edit-prestamo-tasa').value);
+    var dias = parseInt(document.getElementById('edit-prestamo-dias').value);
+    var inicio = document.getElementById('edit-prestamo-inicio').value;
+    var vence = document.getElementById('edit-prestamo-vence').value;
+    if (!monto || monto < 1) { btn._enviando = false; toast('Monto inválido', 'error'); return; }
+    if (tasa < 0) { btn._enviando = false; toast('Tasa inválida', 'error'); return; }
+    if (!dias || dias < 1) { btn._enviando = false; toast('Plazo inválido', 'error'); return; }
+    if (!inicio || !vence) { btn._enviando = false; toast('Fechas inválidas', 'error'); return; }
+    var total = monto + (monto * tasa / 100);
+    mostrarLoading(true);
+    db.collection('prestamos').doc(id).update({
+      monto: monto,
+      tasa: tasa,
+      total: total,
+      dias_plazo: dias,
+      fecha_inicio: inicio,
+      fecha_vence: vence
+    }).then(function() {
+      btn._enviando = false;
+      mostrarLoading(false);
+      cerrarEditarPrestamo();
+      toast('Préstamo actualizado ✅', 'success');
+      verPrestamo(id);
+    }).catch(function(err) {
+      btn._enviando = false;
+      mostrarLoading(false);
+      toast(err.message, 'error');
+    });
+  }
+
   function toggleDarkMode() {
   var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', theme);
@@ -1317,6 +1388,36 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', init);
   </script>
+<div class="modal-overlay" id="modal-editar-prestamo" onclick="if(event.target===this)cerrarEditarPrestamo()">
+  <div class="modal-box">
+    <h3>✏ Editar Préstamo</h3>
+    <form id="form-editar-prestamo" onsubmit="return guardarEditarPrestamo(event)">
+      <div class="form-group">
+        <label>Monto $</label>
+        <input type="number" id="edit-prestamo-monto" inputmode="decimal" step="0.01" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Tasa (%)</label>
+        <input type="number" id="edit-prestamo-tasa" inputmode="decimal" step="0.1" min="0" required>
+      </div>
+      <div class="form-group">
+        <label>Días plazo</label>
+        <input type="number" id="edit-prestamo-dias" inputmode="numeric" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Fecha inicio</label>
+        <input type="date" id="edit-prestamo-inicio" required>
+      </div>
+      <div class="form-group">
+        <label>Fecha vencimiento</label>
+        <input type="date" id="edit-prestamo-vence" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Guardar Cambios</button>
+      <button type="button" class="btn btn-block" style="background:var(--surface);color:var(--text);border:1px solid var(--border);margin-top:6px" onclick="cerrarEditarPrestamo()">Cancelar</button>
+    </form>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-instalar" onclick="if(event.target===this)cerrarInstalar()">
   <div class="modal-box">
     <h3>📲 Instalar la app</h3>
