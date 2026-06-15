@@ -273,6 +273,7 @@
         <div style="display:flex;gap:8px;margin-bottom:16px">
           <button class="btn btn-primary btn-block" onclick="irANuevoPrestamo()">+ Nuevo Préstamo</button>
           <button class="btn btn-outline" onclick="editarClienteActual()" style="flex-shrink:0">✏️</button>
+          <button class="btn btn-danger" onclick="eliminarClienteActual()" style="flex-shrink:0">🗑️</button>
         </div>
         <div class="section">
           <h3>Historial de Préstamos</h3>
@@ -466,79 +467,71 @@ function handleLogout() {
   auth.signOut();
 }
 
+function getDocsParallel(queries, cb) {
+  Promise.all(queries).then(function(results) {
+    cb(results.map(function(snap) {
+      if (snap.docs) {
+        return snap.docs.map(function(d) { var o = d.data(); o.id = d.id; return o; });
+      }
+      return snap.exists ? snap.data() : null;
+    }));
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
 function getDoc(path, cb) {
-  mostrarLoading(true);
   db.doc(path).get().then(function(snap) {
-    mostrarLoading(false);
     cb(snap.exists ? snap.data() : null);
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
 
 function setDoc(path, data, cb) {
-  mostrarLoading(true);
   db.doc(path).set(data).then(function() {
-    mostrarLoading(false);
     if (cb) cb();
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
 
 function getCol(path, cb) {
-  mostrarLoading(true);
   db.collection(path).get().then(function(snap) {
-    mostrarLoading(false);
     cb(snap.docs.map(function(d) { var o = d.data(); o.id = d.id; return o; }));
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
 
 function getColFilter(path, field, op, val, cb) {
-  mostrarLoading(true);
   db.collection(path).where(field, op, val).get().then(function(snap) {
-    mostrarLoading(false);
     cb(snap.docs.map(function(d) { var o = d.data(); o.id = d.id; return o; }));
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
 
 function addDoc(path, data, cb) {
-  mostrarLoading(true);
   db.collection(path).add(data).then(function(ref) {
-    mostrarLoading(false);
     if (cb) cb(ref.id);
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
 
 function updateDoc(path, data, cb) {
-  mostrarLoading(true);
   db.doc(path).update(data).then(function() {
-    mostrarLoading(false);
     if (cb) cb();
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
 
 function deleteDoc(path, cb) {
-  mostrarLoading(true);
   db.doc(path).delete().then(function() {
-    mostrarLoading(false);
     if (cb) cb();
   }).catch(function(err) {
-    mostrarLoading(false);
     toast(err.message, 'error');
   });
 }
@@ -575,124 +568,115 @@ function goBack() {
 }
 
 function cargarAlertas() {
-  getCol('prestamos', function(ps) {
+  getDocsParallel([db.collection('prestamos').get(), db.collection('clientes').get()], function(results) {
+    var ps = results[0], clientes = results[1];
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
     var hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     var vencidos = [], venceHoy = [], proximos = [];
-    var cargarNombres = function() {
-      getCol('clientes', function(clientes) {
-        var cmap = {};
-        clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-        var html = '';
-        if (vencidos.length) {
-          html += '<div class="alerta alerta-danger"><span class="icon">🔴</span><div class="body"><strong>' + vencidos.length + ' vencido' + (vencidos.length > 1 ? 's' : '') + '</strong>';
-          vencidos.forEach(function(v) {
-            html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + ' · venció hace ' + Math.abs(v.dias) + ' día' + (Math.abs(v.dias) > 1 ? 's' : '') + '</div>';
-          });
-          html += '</div></div>';
-        }
-        if (venceHoy.length) {
-          html += '<div class="alerta alerta-warning"><span class="icon">🟡</span><div class="body"><strong>Vencen hoy</strong>';
-          venceHoy.forEach(function(v) {
-            html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + '</div>';
-          });
-          html += '</div></div>';
-        }
-        if (proximos.length) {
-          html += '<div class="alerta alerta-info"><span class="icon">🔵</span><div class="body"><strong>Próximos a vencer (' + proximos.length + ')</strong>';
-          proximos.forEach(function(v) {
-            html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + ' · vence en ' + v.dias + ' día' + (v.dias > 1 ? 's' : '') + ' (' + v.fecha_vence + ')</div>';
-          });
-          html += '</div></div>';
-        }
-        document.getElementById('alertas-section').innerHTML = html || '';
-      });
-    };
     ps.forEach(function(p) {
       if (p.estado !== 'Pendiente') return;
       var vence = new Date(p.fecha_vence);
       vence.setHours(0, 0, 0, 0);
       var diff = Math.ceil((vence - hoy) / (1000 * 60 * 60 * 24));
-      var info = { id: p.id, cliente_id: p.cliente_id, total: p.total, fecha_vence: p.fecha_vence, dias: diff };
+      var info = { cliente_id: p.cliente_id, total: p.total, fecha_vence: p.fecha_vence, dias: diff };
       if (diff < 0) vencidos.push(info);
       else if (diff === 0) venceHoy.push(info);
       else if (diff <= 3) proximos.push(info);
     });
-    cargarNombres();
+    var html = '';
+    if (vencidos.length) {
+      html += '<div class="alerta alerta-danger"><span class="icon">🔴</span><div class="body"><strong>' + vencidos.length + ' vencido' + (vencidos.length > 1 ? 's' : '') + '</strong>';
+      vencidos.forEach(function(v) {
+        html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + ' · venció hace ' + Math.abs(v.dias) + ' día' + (Math.abs(v.dias) > 1 ? 's' : '') + '</div>';
+      });
+      html += '</div></div>';
+    }
+    if (venceHoy.length) {
+      html += '<div class="alerta alerta-warning"><span class="icon">🟡</span><div class="body"><strong>Vencen hoy</strong>';
+      venceHoy.forEach(function(v) {
+        html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + '</div>';
+      });
+      html += '</div></div>';
+    }
+    if (proximos.length) {
+      html += '<div class="alerta alerta-info"><span class="icon">🔵</span><div class="body"><strong>Próximos a vencer (' + proximos.length + ')</strong>';
+      proximos.forEach(function(v) {
+        html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + ' · vence en ' + v.dias + ' día' + (v.dias > 1 ? 's' : '') + ' (' + v.fecha_vence + ')</div>';
+      });
+      html += '</div></div>';
+    }
+    document.getElementById('alertas-section').innerHTML = html || '';
   });
 }
 
 function cargarDashboard() {
   cargarAlertas();
+  mostrarLoading(true);
   var ahora = new Date();
   var mes = ahora.getMonth();
   var anio = ahora.getFullYear();
-  getCol('prestamos', function(ps) {
-    getCol('pagos', function(pgs) {
-      var prestadoMes = 0, recuperadoMes = 0, circulacion = 0, gananciasMes = 0;
-      var pagosProcessed = [];
-      ps.forEach(function(p) {
-        var fi = new Date(p.fecha_inicio);
-        if (fi.getMonth() === mes && fi.getFullYear() === anio) {
-          prestadoMes += p.monto;
-        }
-        if (p.estado === 'Pendiente') {
-          circulacion += p.total;
-        }
-      });
-      pgs.forEach(function(pg) {
-        var fp = new Date(pg.fecha);
-        if (fp.getMonth() === mes && fp.getFullYear() === anio) {
-          recuperadoMes += pg.monto;
-          var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
-          if (prestamo) {
-            gananciasMes += (prestamo.total - prestamo.monto);
-            pagosProcessed.push({ prestamoId: pg.prestamo_id, clienteId: prestamo.cliente_id, monto: pg.monto, fecha: pg.fecha });
-          }
-        }
-      });
-      pagosProcessed.sort(function(a, b) { return b.fecha.localeCompare(a.fecha); });
-      pagosProcessed = pagosProcessed.slice(0, 5);
-      getCol('clientes', function(clientes) {
-        var cmap = {};
-        clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-        document.getElementById('dash-prestado').textContent = pesos(prestadoMes);
-        document.getElementById('dash-recuperado').textContent = pesos(recuperadoMes);
-        document.getElementById('dash-circulacion').textContent = pesos(circulacion);
-        document.getElementById('dash-ganancias').textContent = pesos(gananciasMes);
-        var html = '';
-        if (pagosProcessed.length) {
-          pagosProcessed.forEach(function(u) {
-            html += '<div class="list-item"><div class="info"><div class="name">' + esc(cmap[u.clienteId] || '?') + '</div><div class="sub">' + u.fecha + '</div></div><div class="right"><div class="amount" style="color:var(--success)">' + pesos(u.monto) + '</div></div></div>';
-          });
-        } else {
-          html = '<div class="empty"><div class="icon">📭</div><p>Sin movimientos este mes</p></div>';
-        }
-        document.getElementById('dash-ultimos').innerHTML = html;
-      });
+  getDocsParallel([db.collection('prestamos').get(), db.collection('pagos').get(), db.collection('clientes').get()], function(results) {
+    var ps = results[0], pgs = results[1], clientes = results[2];
+    mostrarLoading(false);
+    var prestadoMes = 0, recuperadoMes = 0, circulacion = 0, gananciasMes = 0;
+    var pagosProcessed = [];
+    ps.forEach(function(p) {
+      var fi = new Date(p.fecha_inicio);
+      if (fi.getMonth() === mes && fi.getFullYear() === anio) prestadoMes += p.monto;
+      if (p.estado === 'Pendiente') circulacion += p.total;
     });
+    pgs.forEach(function(pg) {
+      var fp = new Date(pg.fecha);
+      if (fp.getMonth() === mes && fp.getFullYear() === anio) {
+        recuperadoMes += pg.monto;
+        var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
+        if (prestamo) {
+          gananciasMes += (prestamo.total - prestamo.monto);
+          pagosProcessed.push({ clienteId: prestamo.cliente_id, monto: pg.monto, fecha: pg.fecha });
+        }
+      }
+    });
+    pagosProcessed.sort(function(a, b) { return b.fecha.localeCompare(a.fecha); });
+    pagosProcessed = pagosProcessed.slice(0, 5);
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    document.getElementById('dash-prestado').textContent = pesos(prestadoMes);
+    document.getElementById('dash-recuperado').textContent = pesos(recuperadoMes);
+    document.getElementById('dash-circulacion').textContent = pesos(circulacion);
+    document.getElementById('dash-ganancias').textContent = pesos(gananciasMes);
+    var html = '';
+    if (pagosProcessed.length) {
+      pagosProcessed.forEach(function(u) {
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(cmap[u.clienteId] || '?') + '</div><div class="sub">' + u.fecha + '</div></div><div class="right"><div class="amount" style="color:var(--success)">' + pesos(u.monto) + '</div></div></div>';
+      });
+    } else {
+      html = '<div class="empty"><div class="icon">📭</div><p>Sin movimientos este mes</p></div>';
+    }
+    document.getElementById('dash-ultimos').innerHTML = html;
   });
 }
 
 function cargarClientes(cb) {
-  getCol('clientes', function(clientes) {
-    _clientes = clientes;
-    getCol('prestamos', function(ps) {
-      var pendientes = {};
-      ps.forEach(function(p) {
-        if (p.estado !== 'Pendiente') return;
-        var cid = p.cliente_id;
-        if (!pendientes[cid]) pendientes[cid] = { count: 0, total: 0 };
-        pendientes[cid].count++;
-        pendientes[cid].total += p.total;
-      });
-      _clientes.forEach(function(c) {
-        c.total_prestamos = pendientes[c.id] ? pendientes[c.id].count : 0;
-        c.pendiente = pendientes[c.id] ? pendientes[c.id].total : 0;
-      });
-      renderClientes();
-      if (cb) cb();
+  mostrarLoading(true);
+  getDocsParallel([db.collection('clientes').get(), db.collection('prestamos').get()], function(results) {
+    mostrarLoading(false);
+    _clientes = results[0];
+    var ps = results[1];
+    var pendientes = {};
+    ps.forEach(function(p) {
+      if (p.estado !== 'Pendiente') return;
+      if (!pendientes[p.cliente_id]) pendientes[p.cliente_id] = { count: 0, total: 0 };
+      pendientes[p.cliente_id].count++;
+      pendientes[p.cliente_id].total += p.total;
     });
+    _clientes.forEach(function(c) {
+      c.total_prestamos = pendientes[c.id] ? pendientes[c.id].count : 0;
+      c.pendiente = pendientes[c.id] ? pendientes[c.id].total : 0;
+    });
+    renderClientes();
+    if (cb) cb();
   });
 }
 
@@ -765,6 +749,18 @@ function editarClienteActual() {
   navigate('cliente-form');
 }
 
+function eliminarClienteActual() {
+  var c = _clienteActual;
+  if (!c) return;
+  if (!confirm('¿Eliminar a ' + c.nombre + '?\n\nLos préstamos de este cliente se van a mantener pero van a quedar sin referencia.')) return;
+  if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
+  deleteDoc('clientes/' + c.id, function() {
+    toast('Cliente eliminado', 'success');
+    _clientes = [];
+    navigate('clientes');
+  });
+}
+
 function guardarCliente(e) {
   e.preventDefault();
   var extra = {};
@@ -801,57 +797,59 @@ function guardarCliente(e) {
 }
 
 function verCliente(id) {
-  getDoc('clientes/' + id, function(c) {
+  mostrarLoading(true);
+  getDocsParallel([db.doc('clientes/' + id).get(), db.collection('prestamos').where('cliente_id', '==', id).get()], function(results) {
+    mostrarLoading(false);
+    var c = results[0];
     if (!c) { toast('Cliente no encontrado', 'error'); return; }
     c.id = id;
     _clienteActual = c;
-    getColFilter('prestamos', 'cliente_id', '==', id, function(ps) {
-      var html = '<h2>' + esc(c.nombre) + '</h2>';
-      html += '<div class="phone">📱 ' + esc(c.telefono || 'Sin teléfono') + '</div>';
-      if (c.tasa_preferencial) html += '<div style="margin-top:6px;color:var(--warning);font-weight:500">⭐ Tasa preferencial: ' + c.tasa_preferencial + '%</div>';
-      if (c.notas) html += '<div style="margin-top:6px;color:var(--text2);font-size:13px">📝 ' + esc(c.notas) + '</div>';
-      var pendientes = ps.filter(function(p) { return p.estado === 'Pendiente'; });
-      var pagados = ps.filter(function(p) { return p.estado === 'Pagado'; });
-      html += '<div class="stats"><div><div class="num" style="color:var(--warning)">' + pendientes.length + '</div><div class="lbl">Pendientes</div></div>';
-      html += '<div><div class="num" style="color:var(--success)">' + pagados.length + '</div><div class="lbl">Pagados</div></div>';
-      html += '<div><div class="num" style="color:var(--primary)">' + ps.length + '</div><div class="lbl">Total</div></div></div>';
-      document.getElementById('cliente-detalle-info').innerHTML = html;
-      var extras = document.getElementById('cliente-detalle-extras');
-      var extraHtml = '<h3>📋 Datos del cliente</h3><div class="cliente-info-grid">';
-      if (c.dni) extraHtml += '<div class="cliente-info-item"><div class="lbl">DNI</div><div>' + esc(c.dni) + '</div></div>';
-      if (c.direccion) extraHtml += '<div class="cliente-info-item"><div class="lbl">Dirección</div><div>' + esc(c.direccion) + '</div></div>';
-      extraHtml += '</div>';
-      try {
-        var extra = JSON.parse(c.extra_campos || '{}');
-        var keys = Object.keys(extra);
-        if (keys.length) {
-          extraHtml += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:14px">';
-          keys.forEach(function(k) {
-            extraHtml += '<div style="display:flex;gap:8px;padding:3px 0"><span style="font-weight:500;min-width:100px">' + esc(k) + ':</span><span>' + esc(extra[k]) + '</span></div>';
-          });
-          extraHtml += '</div>';
-        }
-      } catch(e) {}
-      var hasExtra = c.dni || c.direccion || (function(){ try { return Object.keys(JSON.parse(c.extra_campos || '{}')).length; } catch(e) { return 0; } })();
-      if (hasExtra) {
-        extras.style.display = 'block';
-        extras.innerHTML = extraHtml;
-      } else {
-        extras.style.display = 'none';
-      }
-      if (!ps.length) {
-        document.getElementById('cliente-prestamos-list').innerHTML = '<div class="empty"><div class="icon">📭</div><p>Todavía no tiene préstamos</p></div>';
-      } else {
-        var h = '';
-        ps.forEach(function(p) {
-          var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
-          var label = p.estado === 'Pagado' ? 'Pagado el ' + p.fecha_pago : 'Vence: ' + p.fecha_vence;
-          h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+    var ps = results[1] || [];
+    var html = '<h2>' + esc(c.nombre) + '</h2>';
+    html += '<div class="phone">📱 ' + esc(c.telefono || 'Sin teléfono') + '</div>';
+    if (c.tasa_preferencial) html += '<div style="margin-top:6px;color:var(--warning);font-weight:500">⭐ Tasa preferencial: ' + c.tasa_preferencial + '%</div>';
+    if (c.notas) html += '<div style="margin-top:6px;color:var(--text2);font-size:13px">📝 ' + esc(c.notas) + '</div>';
+    var pendientes = ps.filter(function(p) { return p.estado === 'Pendiente'; });
+    var pagados = ps.filter(function(p) { return p.estado === 'Pagado'; });
+    html += '<div class="stats"><div><div class="num" style="color:var(--warning)">' + pendientes.length + '</div><div class="lbl">Pendientes</div></div>';
+    html += '<div><div class="num" style="color:var(--success)">' + pagados.length + '</div><div class="lbl">Pagados</div></div>';
+    html += '<div><div class="num" style="color:var(--primary)">' + ps.length + '</div><div class="lbl">Total</div></div></div>';
+    document.getElementById('cliente-detalle-info').innerHTML = html;
+    var extras = document.getElementById('cliente-detalle-extras');
+    var extraHtml = '<h3>📋 Datos del cliente</h3><div class="cliente-info-grid">';
+    if (c.dni) extraHtml += '<div class="cliente-info-item"><div class="lbl">DNI</div><div>' + esc(c.dni) + '</div></div>';
+    if (c.direccion) extraHtml += '<div class="cliente-info-item"><div class="lbl">Dirección</div><div>' + esc(c.direccion) + '</div></div>';
+    extraHtml += '</div>';
+    try {
+      var extra = JSON.parse(c.extra_campos || '{}');
+      var keys = Object.keys(extra);
+      if (keys.length) {
+        extraHtml += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:14px">';
+        keys.forEach(function(k) {
+          extraHtml += '<div style="display:flex;gap:8px;padding:3px 0"><span style="font-weight:500;min-width:100px">' + esc(k) + ':</span><span>' + esc(extra[k]) + '</span></div>';
         });
-        document.getElementById('cliente-prestamos-list').innerHTML = h;
+        extraHtml += '</div>';
       }
-      navigate('cliente-detalle');
-    });
+    } catch(e) {}
+    var hasExtra = c.dni || c.direccion || (function(){ try { return Object.keys(JSON.parse(c.extra_campos || '{}')).length; } catch(e) { return 0; } })();
+    if (hasExtra) {
+      extras.style.display = 'block';
+      extras.innerHTML = extraHtml;
+    } else {
+      extras.style.display = 'none';
+    }
+    if (!ps.length) {
+      document.getElementById('cliente-prestamos-list').innerHTML = '<div class="empty"><div class="icon">📭</div><p>Todavía no tiene préstamos</p></div>';
+    } else {
+      var h = '';
+      ps.forEach(function(p) {
+        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
+        var label = p.estado === 'Pagado' ? 'Pagado el ' + p.fecha_pago : 'Vence: ' + p.fecha_vence;
+        h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+      });
+      document.getElementById('cliente-prestamos-list').innerHTML = h;
+    }
+    navigate('cliente-detalle');
   });
 }
 
@@ -872,32 +870,33 @@ function filtrarPrestamos(f) {
 }
 
 function cargarPrestamos() {
-  getCol('prestamos', function(ps) {
-    getCol('clientes', function(clientes) {
-      var cmap = {};
-      clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-      if (_filtroPrestamos === 'pendientes') ps = ps.filter(function(p) { return p.estado === 'Pendiente'; });
-      else if (_filtroPrestamos === 'pagados') ps = ps.filter(function(p) { return p.estado === 'Pagado'; });
-      if (!ps.length) {
-        document.getElementById('prestamos-list').innerHTML = '<div class="section"><div class="empty"><div class="icon">📭</div><p>No hay préstamos ' + _filtroPrestamos + '</p></div></div>';
-        return;
+  mostrarLoading(true);
+  getDocsParallel([db.collection('prestamos').get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var ps = results[0], clientes = results[1];
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    if (_filtroPrestamos === 'pendientes') ps = ps.filter(function(p) { return p.estado === 'Pendiente'; });
+    else if (_filtroPrestamos === 'pagados') ps = ps.filter(function(p) { return p.estado === 'Pagado'; });
+    if (!ps.length) {
+      document.getElementById('prestamos-list').innerHTML = '<div class="section"><div class="empty"><div class="icon">📭</div><p>No hay préstamos ' + _filtroPrestamos + '</p></div></div>';
+      return;
+    }
+    var html = '<div class="section">';
+    ps.forEach(function(p) {
+      var rightHtml;
+      if (p.estado === 'Pagado') {
+        rightHtml = '<span class="status pagado">Pagado</span>';
+      } else {
+        rightHtml = '<button class="btn btn-success btn-sm" onclick="pagarPrestamo(\'' + p.id + '\')">✔ Pagado</button>';
       }
-      var html = '<div class="section">';
-      ps.forEach(function(p) {
-        var rightHtml;
-        if (p.estado === 'Pagado') {
-          rightHtml = '<span class="status pagado">Pagado</span>';
-        } else {
-          rightHtml = '<button class="btn btn-success btn-sm" onclick="pagarPrestamo(\'' + p.id + '\')">✔ Pagado</button>';
-        }
-        html += '<div class="list-item">';
-        html += '<div class="info"><div class="name">' + esc(cmap[p.cliente_id] || 'Cliente') + '</div>';
-        html += '<div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.dias_plazo + 'd · Vence: ' + p.fecha_vence + '</div></div>';
-        html += '<div class="right">' + rightHtml + '</div></div>';
-      });
-      html += '</div>';
-      document.getElementById('prestamos-list').innerHTML = html;
+      html += '<div class="list-item">';
+      html += '<div class="info"><div class="name">' + esc(cmap[p.cliente_id] || 'Cliente') + '</div>';
+      html += '<div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.dias_plazo + 'd · Vence: ' + p.fecha_vence + '</div></div>';
+      html += '<div class="right">' + rightHtml + '</div></div>';
     });
+    html += '</div>';
+    document.getElementById('prestamos-list').innerHTML = html;
   });
 }
 
@@ -921,7 +920,9 @@ function abrirNuevoPrestamo(clienteId) {
   navigate('nuevo-prestamo');
   document.getElementById('prestamo-resumen').style.display = 'none';
   document.getElementById('prestamo-cliente-info').style.display = 'none';
+  mostrarLoading(true);
   getCol('clientes', function(clientes) {
+    mostrarLoading(false);
     _clientes = clientes;
     var sel = document.getElementById('prestamo-cliente');
     sel.innerHTML = '<option value="">Seleccionar cliente...</option>';
@@ -1016,54 +1017,46 @@ function guardarPrestamo(e) {
 }
 
 function cargarReporte() {
+  mostrarLoading(true);
   var mes = parseInt(document.getElementById('report-mes').value);
   var anio = parseInt(document.getElementById('report-anio').value);
-  getCol('prestamos', function(ps) {
-    getCol('pagos', function(pgs) {
-      getCol('clientes', function(clientes) {
-        var cmap = {};
-        clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-        var prestado = 0, recuperado = 0, ganancias = 0, circulacion = 0;
-        var detalle = [];
-        ps.forEach(function(p) {
-          var fi = new Date(p.fecha_inicio);
-          if (fi.getMonth() === mes && fi.getFullYear() === anio) {
-            prestado += p.monto;
-            detalle.push({
-              id: p.id,
-              cliente: cmap[p.cliente_id] || '?',
-              monto: p.monto,
-              total: p.total,
-              estado: p.estado,
-              fecha: p.fecha_inicio
-            });
-          }
-          if (p.estado === 'Pendiente') circulacion += p.total;
-        });
-        pgs.forEach(function(pg) {
-          var fp = new Date(pg.fecha);
-          if (fp.getMonth() === mes && fp.getFullYear() === anio) {
-            recuperado += pg.monto;
-            var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
-            if (prestamo) ganancias += (prestamo.total - prestamo.monto);
-          }
-        });
-        document.getElementById('rep-prestado').textContent = pesos(prestado);
-        document.getElementById('rep-recuperado').textContent = pesos(recuperado);
-        document.getElementById('rep-circulacion').textContent = pesos(circulacion);
-        document.getElementById('rep-ganancias').textContent = pesos(ganancias);
-        var html = '';
-        if (detalle.length) {
-          detalle.forEach(function(p) {
-            var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
-            html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
-          });
-        } else {
-          html = '<div class="empty"><div class="icon">📭</div><p>Sin préstamos en este período</p></div>';
-        }
-        document.getElementById('report-detalle').innerHTML = html;
-      });
+  getDocsParallel([db.collection('prestamos').get(), db.collection('pagos').get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var ps = results[0], pgs = results[1], clientes = results[2];
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    var prestado = 0, recuperado = 0, ganancias = 0, circulacion = 0;
+    var detalle = [];
+    ps.forEach(function(p) {
+      var fi = new Date(p.fecha_inicio);
+      if (fi.getMonth() === mes && fi.getFullYear() === anio) {
+        prestado += p.monto;
+        detalle.push({ cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, fecha: p.fecha_inicio });
+      }
+      if (p.estado === 'Pendiente') circulacion += p.total;
     });
+    pgs.forEach(function(pg) {
+      var fp = new Date(pg.fecha);
+      if (fp.getMonth() === mes && fp.getFullYear() === anio) {
+        recuperado += pg.monto;
+        var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
+        if (prestamo) ganancias += (prestamo.total - prestamo.monto);
+      }
+    });
+    document.getElementById('rep-prestado').textContent = pesos(prestado);
+    document.getElementById('rep-recuperado').textContent = pesos(recuperado);
+    document.getElementById('rep-circulacion').textContent = pesos(circulacion);
+    document.getElementById('rep-ganancias').textContent = pesos(ganancias);
+    var html = '';
+    if (detalle.length) {
+      detalle.forEach(function(p) {
+        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+      });
+    } else {
+      html = '<div class="empty"><div class="icon">📭</div><p>Sin préstamos en este período</p></div>';
+    }
+    document.getElementById('report-detalle').innerHTML = html;
   });
 }
 
