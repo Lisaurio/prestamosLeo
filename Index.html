@@ -220,7 +220,8 @@
           <div class="stat-card"><div class="label">Recuperado (Mes)</div><div class="value green" id="dash-recuperado">$ 0</div></div>
           <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="dash-circulacion">$ 0</div></div>
           <div class="stat-card"><div class="label">Ganancias (Mes)</div><div class="value green" id="dash-ganancias">$ 0</div></div>
-          <div class="stat-card"><div class="label">Pérdidas</div><div class="value red" id="dash-perdidas">$ 0</div></div>
+          <div class="stat-card"><div class="label">Pérdidas (Mes)</div><div class="value red" id="dash-perdidas">$ 0</div></div>
+          <div class="stat-card"><div class="label">Neto (Mes)</div><div class="value" id="dash-neto">$ 0</div></div>
         </div>
         <button class="btn btn-primary btn-block" onclick="abrirNuevoPrestamo(null)" style="margin-bottom:12px">+ Nuevo Préstamo</button>
         <div class="section">
@@ -379,6 +380,7 @@
           <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="rep-circulacion">$ 0</div></div>
           <div class="stat-card"><div class="label">Ganancias</div><div class="value green" id="rep-ganancias">$ 0</div></div>
           <div class="stat-card"><div class="label">Pérdidas</div><div class="value red" id="rep-perdidas">$ 0</div></div>
+          <div class="stat-card"><div class="label">Neto</div><div class="value" id="rep-neto">$ 0</div></div>
         </div>
         <div class="section">
           <h3>Detalle de préstamos</h3>
@@ -852,7 +854,10 @@ function cargarDashboard() {
       var fi = desglosarFecha(p.fecha_inicio);
       if (fi.mes === mes && fi.anio === anio) prestadoMes += p.monto;
       if (p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable') circulacion += p.total;
-      if (p.estado_cobro === 'incobrable') perdidas += p.total;
+      if (p.estado_cobro === 'incobrable' && p.fecha_incobrable) {
+        var fi2 = desglosarFecha(p.fecha_incobrable);
+        if (fi2.mes === mes && fi2.anio === anio) perdidas += p.total;
+      }
     });
     pgs.forEach(function(pg) {
       var fp = desglosarFecha(pg.fecha);
@@ -874,6 +879,12 @@ function cargarDashboard() {
     document.getElementById('dash-circulacion').textContent = pesos(circulacion);
     document.getElementById('dash-ganancias').textContent = pesos(gananciasMes);
     document.getElementById('dash-perdidas').textContent = pesos(perdidas);
+    var neto = gananciasMes - perdidas;
+    var netoEl = document.getElementById('dash-neto');
+    if (netoEl) {
+      netoEl.textContent = pesos(neto);
+      netoEl.style.color = neto >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
     var html = '';
     if (pagosProcessed.length) {
       pagosProcessed.forEach(function(u) {
@@ -1282,12 +1293,21 @@ function avanzarEstadoCobro(btn, id) {
         var actual2 = parseFloat(txt2) || 0;
         el2.textContent = pesos(actual2 + total);
       }
+      var el3 = document.getElementById('dash-neto');
+      if (el3) {
+        var txt3 = el3.textContent.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+        var actual3 = parseFloat(txt3) || 0;
+        el3.textContent = pesos(actual3 - total);
+        el3.style.color = (actual3 - total) >= 0 ? 'var(--success)' : 'var(--danger)';
+      }
     }
     actualizarBadgePrestamos();
   } else {
     btn.textContent = nextLabels[nextEstado];
   }
-  db.doc('prestamos/' + id).set({ estado_cobro: nextEstado }, { merge: true }).catch(function(err) {
+  var data = { estado_cobro: nextEstado };
+  if (isInc) data.fecha_incobrable = new Date().toISOString().split('T')[0];
+  db.doc('prestamos/' + id).set(data, { merge: true }).catch(function(err) {
     toast('Error: ' + err.message, 'error');
   });
 }
@@ -1302,7 +1322,7 @@ function pagarPrestamo(id, esIncobrable) {
     if (!p) { toast('Préstamo no encontrado', 'error'); return; }
     if (p.estado === 'Pagado') { toast('Ya está pagado', 'error'); return; }
     var hoy = new Date().toISOString().split('T')[0];
-    updateDoc('prestamos/' + id, { estado: 'Pagado', fecha_pago: hoy, estado_cobro: '' }, function() {
+    updateDoc('prestamos/' + id, { estado: 'Pagado', fecha_pago: hoy, estado_cobro: '', fecha_incobrable: '' }, function() {
       addDoc('pagos', { prestamo_id: id, monto: p.total, fecha: hoy }, function() {
         actualizarBadgePrestamos();
         toast(_offline ? 'Cambio guardado 📦 — se sincronizará cuando haya conexión' : 'Préstamo marcado como pagado ✅', _offline ? 'warning' : 'success');
@@ -1476,7 +1496,10 @@ function cargarReporte() {
         detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, estado_cobro: p.estado_cobro || '', fecha: p.fecha_inicio });
       }
       if (p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable') circulacion += p.total;
-      if (p.estado_cobro === 'incobrable') perdidas += p.total;
+      if (p.estado_cobro === 'incobrable' && p.fecha_incobrable) {
+        var fi2 = desglosarFecha(p.fecha_incobrable);
+        if (fi2.mes === mes && fi2.anio === anio) perdidas += p.total;
+      }
     });
     pgs.forEach(function(pg) {
       var fp = desglosarFecha(pg.fecha);
@@ -1491,6 +1514,12 @@ function cargarReporte() {
     document.getElementById('rep-circulacion').textContent = pesos(circulacion);
     document.getElementById('rep-ganancias').textContent = pesos(ganancias);
     document.getElementById('rep-perdidas').textContent = pesos(perdidas);
+    var neto = ganancias - perdidas;
+    var netoEl = document.getElementById('rep-neto');
+    if (netoEl) {
+      netoEl.textContent = pesos(neto);
+      netoEl.style.color = neto >= 0 ? 'var(--success)' : 'var(--danger)';
+    }
     var html = '';
     if (detalle.length) {
       detalle.forEach(function(p) {
