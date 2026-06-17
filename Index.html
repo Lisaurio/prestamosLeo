@@ -339,6 +339,10 @@
                 </label>
               </div>
             </div>
+            <div class="form-group">
+              <label>Fecha de inicio</label>
+              <input type="date" id="prestamo-fecha">
+            </div>
             <div id="prestamo-resumen" class="resumen-card" style="display:none">
               <div class="row"><span>Monto</span><span id="res-monto">$ 0</span></div>
               <div class="row"><span>Tasa</span><span id="res-tasa">0%</span></div>
@@ -452,6 +456,15 @@ window.addEventListener('offline', function() {
   document.getElementById('offline-banner').style.display = 'block';
   toast('📶 Sin conexión — los cambios se guardarán localmente', 'warning');
 });
+
+function normalizarFecha(str) {
+  if (!str) return '';
+  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return str;
+  var m2 = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m2) return m2[3] + '-' + m2[2] + '-' + m2[1];
+  return str;
+}
 
 function msgExito(texto) { return { msg: _offline ? '📦 ' + texto + ' — se sincronizará cuando haya conexión' : texto + ' ✅', tipo: _offline ? 'warning' : 'success' }; }
 
@@ -620,6 +633,7 @@ function navigate(page) {
     document.getElementById('search-cliente').value = '';
     cargarClientes();
   }
+  if (page === 'dashboard') cargarDashboard();
   if (page === 'prestamos') cargarPrestamos();
   if (page === 'reportes') cargarReporte();
   if (page === 'config') cargarConfig();
@@ -1018,6 +1032,7 @@ function verPrestamo(id) {
       html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Pagado</button>';
       html += '</div>';
     }
+    html += '<button class="btn btn-danger btn-block" onclick="eliminarPrestamo(\'' + id + '\')">🗑️ Eliminar préstamo</button>';
     document.getElementById('prestamo-detalle-card').innerHTML = html;
 
     var clienteSection = document.getElementById('prestamo-detalle-cliente');
@@ -1063,6 +1078,26 @@ function pagarPrestamo(id) {
   });
 }
 
+function eliminarPrestamo(id) {
+  if (!confirm('¿Eliminar este préstamo?\n\nLos pagos asociados también se eliminarán.')) return;
+  if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
+  mostrarLoading(true);
+  getColFilter('pagos', 'prestamo_id', '==', id, function(pagos) {
+    var ops = [];
+    pagos.forEach(function(pg) { ops.push(db.doc('pagos/' + pg.id).delete()); });
+    ops.push(db.doc('prestamos/' + id).delete());
+    Promise.all(ops).then(function() {
+      mostrarLoading(false);
+      actualizarBadgePrestamos();
+      var _r = msgExito('Préstamo eliminado'); toast(_r.msg, _r.tipo);
+      navigate('prestamos');
+    }).catch(function(err) {
+      mostrarLoading(false);
+      toast(err.message, 'error');
+    });
+  });
+}
+
 function abrirNuevoPrestamo(clienteId) {
   navigate('nuevo-prestamo');
   document.getElementById('prestamo-resumen').style.display = 'none';
@@ -1078,6 +1113,7 @@ function abrirNuevoPrestamo(clienteId) {
       sel.innerHTML += '<option value="' + c.id + '" ' + s + '>' + esc(c.nombre) + (c.telefono ? ' - ' + esc(c.telefono) : '') + '</option>';
     });
     document.getElementById('prestamo-monto').value = '';
+    document.getElementById('prestamo-fecha').value = new Date().toISOString().split('T')[0];
     if (clienteId) onCambioCliente();
   });
 }
@@ -1147,7 +1183,8 @@ function guardarPrestamo(e) {
   else if (dias === 15) tasa = 60;
   else tasa = 80;
   var total = monto + (monto * tasa / 100);
-  var fechaInicio = new Date();
+  var fechaInicioStr = document.getElementById('prestamo-fecha').value || new Date().toISOString().split('T')[0];
+  var fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
   var fechaVence = new Date(fechaInicio.getTime() + dias * 24 * 60 * 60 * 1000);
   mostrarLoading(true);
   db.collection('prestamos').add({
@@ -1156,7 +1193,7 @@ function guardarPrestamo(e) {
     tasa: tasa,
     total: total,
     dias_plazo: dias,
-    fecha_inicio: fechaInicio.toISOString().split('T')[0],
+    fecha_inicio: fechaInicioStr,
     fecha_vence: fechaVence.toISOString().split('T')[0],
     fecha_pago: '',
     estado: 'Pendiente',
@@ -1361,10 +1398,12 @@ function removeCustomField(btn) {
     var dias = parseInt(document.getElementById('edit-prestamo-dias').value);
     var inicio = document.getElementById('edit-prestamo-inicio').value;
     var vence = document.getElementById('edit-prestamo-vence').value;
+    inicio = normalizarFecha(inicio);
+    vence = normalizarFecha(vence);
     if (!monto || monto < 1) { btn._enviando = false; toast('Monto inválido', 'error'); return; }
     if (tasa < 0) { btn._enviando = false; toast('Tasa inválida', 'error'); return; }
     if (!dias || dias < 1) { btn._enviando = false; toast('Plazo inválido', 'error'); return; }
-    if (!inicio || !vence) { btn._enviando = false; toast('Fechas inválidas', 'error'); return; }
+    if (!inicio || !vence) { btn._enviando = false; toast('Fechas inválidas (usá AAAA-MM-DD)', 'error'); return; }
     var total = monto + (monto * tasa / 100);
     mostrarLoading(true);
     db.collection('prestamos').doc(id).update({
@@ -1434,12 +1473,12 @@ document.addEventListener('DOMContentLoaded', init);
         <input type="number" id="edit-prestamo-dias" inputmode="numeric" min="1" required>
       </div>
       <div class="form-group">
-        <label>Fecha inicio</label>
-        <input type="date" id="edit-prestamo-inicio" required>
+        <label>Fecha inicio (AAAA-MM-DD)</label>
+        <input type="text" id="edit-prestamo-inicio" inputmode="numeric" placeholder="Ej: 2026-06-15" required>
       </div>
       <div class="form-group">
-        <label>Fecha vencimiento</label>
-        <input type="date" id="edit-prestamo-vence" required>
+        <label>Fecha vencimiento (AAAA-MM-DD)</label>
+        <input type="text" id="edit-prestamo-vence" inputmode="numeric" placeholder="Ej: 2026-07-15" required>
       </div>
       <button type="submit" class="btn btn-primary btn-block">Guardar Cambios</button>
       <button type="button" class="btn btn-block" style="background:var(--surface);color:var(--text);border:1px solid var(--border);margin-top:6px" onclick="cerrarEditarPrestamo()">Cancelar</button>
