@@ -1086,11 +1086,12 @@ function verCliente(id) {
     } else {
       var h = '';
       ps.forEach(function(p) {
-        var cls = p.estado === 'Pagado' ? 'pagado' : (p.estado_cobro === 'incobrable' ? 'pagado' : 'pendiente');
+        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
         var label = p.estado === 'Pagado' ? 'Pagado el ' + p.fecha_pago : 'Vence: ' + p.fecha_vence;
         var ecTag = ''; var ecLbl = { 'primer_aviso': '1er', 'segundo_aviso': '2do', 'tercer_aviso': '3er', 'incobrable': '✗' };
         if (p.estado_cobro) ecTag = '<span class="status pendiente" style="font-size:10px;padding:1px 6px;margin-right:4px">' + (ecLbl[p.estado_cobro] || p.estado_cobro) + '</span>';
-        h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right">' + ecTag + '<span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+        var estadoTexto = p.estado_cobro === 'incobrable' ? '<span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:500;background:var(--danger-bg);color:var(--danger)">Incobrable \u26D4</span>' : '<span class="status ' + cls + '">' + p.estado + '</span>';
+        h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right">' + ecTag + estadoTexto + '</div></div>';
       });
       document.getElementById('cliente-prestamos-list').innerHTML = h;
     }
@@ -1451,10 +1452,11 @@ function cargarReporte() {
     var html = '';
     if (detalle.length) {
       detalle.forEach(function(p) {
-        var cls = p.estado === 'Pagado' ? 'pagado' : (p.estado_cobro === 'incobrable' ? 'pagado' : 'pendiente');
+        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
         var ecLabel = { 'primer_aviso': '1er', 'segundo_aviso': '2do', 'tercer_aviso': '3er', 'incobrable': '✗' };
-        var ecBadge = p.estado_cobro ? '<span class="status ' + (p.estado_cobro === 'incobrable' ? 'pagado' : 'pendiente') + '" style="font-size:10px;padding:1px 6px">' + (ecLabel[p.estado_cobro] || p.estado_cobro) + '</span>' : '';
-        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right" style="display:flex;align-items:center;gap:4px">' + ecBadge + '<span class="status ' + cls + '">' + p.estado + '</span><button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;color:var(--danger)" onclick="eliminarPrestamo(\'' + p.id + '\');event.stopPropagation()" title="Eliminar">🗑️</button></div></div>';
+        var ecBadge = p.estado_cobro && p.estado_cobro !== 'incobrable' ? '<span class="status pendiente" style="font-size:10px;padding:1px 6px">' + (ecLabel[p.estado_cobro] || p.estado_cobro) + '</span>' : '';
+        var estadoTexto = p.estado_cobro === 'incobrable' ? '<span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;background:var(--danger-bg);color:var(--danger)">Incobrable \u26D4</span>' : '<span class="status ' + cls + '">' + p.estado + '</span>';
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right" style="display:flex;align-items:center;gap:4px">' + ecBadge + estadoTexto + '<button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;color:var(--danger)" onclick="eliminarPrestamo(\'' + p.id + '\');event.stopPropagation()" title="Eliminar">🗑️</button></div></div>';
       });
     } else {
       html = '<div class="empty"><div class="icon">📭</div><p>Sin préstamos en este período</p></div>';
