@@ -4,7 +4,7 @@
   <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Mis Préstamos</title>
+  <title>Préstamos Leo</title>
   <link rel="manifest" id="manifest-link">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563eb'/%3E%3Ctext x='50' y='72' font-size='64' font-weight='bold' text-anchor='middle' fill='white' font-family='sans-serif'%3E%24%3C/text%3E%3C/svg%3E">
   <style>
@@ -189,7 +189,7 @@
 
   <div id="page-login" class="active">
     <div class="login-box">
-      <h1>💰 Mis Préstamos</h1>
+      <h1>💰 Préstamos Leo</h1>
       <p>Accedé a tu panel de control</p>
       <form id="form-login" onsubmit="return handleLogin(event)">
         <label for="login-email">Email</label>
@@ -446,9 +446,9 @@ const db = firebase.firestore();
   var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#2563eb"/><text x="50" y="72" font-size="64" font-weight="bold" text-anchor="middle" fill="white" font-family="sans-serif">$</text></svg>';
   var iconData = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
   var manifest = {
-    name: "Mis Pr\u00e9stamos",
-    short_name: "Pr\u00e9stamos",
-    start_url: "Index.html",
+    name: "Pr\u00e9stamos Leo",
+    short_name: "Pr\u00e9stamos Leo",
+    start_url: "Index.html?v=2",
     display: "standalone",
     background_color: "#0f172a",
     theme_color: "#2563eb",
@@ -644,7 +644,7 @@ function navigate(page) {
   var el = document.getElementById('page-' + page);
   if (el) el.classList.add('active');
   var titles = {
-    dashboard: 'Dashboard', clientes: 'Clientes', 'cliente-form': 'Cliente',
+    dashboard: 'Pr\u00e9stamos Leo', clientes: 'Clientes', 'cliente-form': 'Cliente',
     'cliente-detalle': 'Detalle', prestamos: 'Pr\u00e9stamos', 'prestamo-detalle': 'Detalle',
     'nuevo-prestamo': 'Nuevo Pr\u00e9stamo', reportes: 'Reportes', config: 'Config'
   };
