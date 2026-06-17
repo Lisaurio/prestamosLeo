@@ -413,10 +413,7 @@
               <label>📋 Texto para enviar</label>
               <textarea id="sim-texto" rows="5" style="font-size:14px;width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-family:monospace" readonly></textarea>
             </div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-primary btn-block" onclick="copiarSimulacion()">📋 Copiar</button>
-              <button class="btn btn-success btn-block" onclick="enviarSimulacion()">📱 WhatsApp</button>
-            </div>
+            <button class="btn btn-primary btn-block" onclick="copiarSimulacion()">📋 Copiar para enviar por WhatsApp</button>
           </div>
         </div>
       </div>
@@ -1416,7 +1413,8 @@ function calcularSimulacion() {
   document.getElementById('sim-r-tasa').textContent = tasa + '%';
   document.getElementById('sim-r-interes').textContent = pesos(total - monto);
   document.getElementById('sim-r-total').textContent = pesos(total);
-  var texto = '\ud83d\udccb *Condiciones del pr\u00e9stamo*\n\ud83d\udcb0 Monto: $' + formatearMoneda(monto) + '\n\ud83d\udcc6 Plazo: ' + dias + ' d\u00edas\n\ud83d\udcca Tasa: ' + tasa + '%\n\ud83d\udcb2 Inter\u00e9s: $' + formatearMoneda(total - monto) + '\n\ud83d\udcb5 Total a pagar: $' + formatearMoneda(total);
+  var fmt = function(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+  var texto = '\ud83d\udccb *Condiciones del pr\u00e9stamo*\n\ud83d\udcb0 Monto: $' + fmt(monto) + '\n\ud83d\udcc6 Plazo: ' + dias + ' d\u00edas\n\ud83d\udcca Tasa: ' + tasa + '%\n\ud83d\udcb5 Total a devolver: $' + fmt(total);
   document.getElementById('sim-texto').value = texto;
   document.getElementById('sim-resultado').style.display = 'block';
 }
@@ -1431,16 +1429,6 @@ function copiarSimulacion() {
     document.execCommand('copy');
     toast('Copiado al portapapeles ✅', 'success');
   });
-}
-
-function enviarSimulacion() {
-  var texto = document.getElementById('sim-texto').value;
-  var waLink = 'https://wa.me/?text=' + encodeURIComponent(texto);
-  window.open(waLink, '_blank');
-}
-
-function formatearMoneda(n) {
-  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function addCustomField() {
