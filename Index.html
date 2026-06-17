@@ -126,7 +126,7 @@
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
     .form-group input, .form-group select, .form-group textarea { width: 100%; max-width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; transition: border .2s; background: var(--surface); color: var(--text); }
-    .form-group input[type="date"] { min-width: 0; width: 100%; max-width: 100%; }
+    .form-group input[type="date"] { min-width: 0; width: 100%; max-width: 100%; -webkit-appearance: none; appearance: none; font-family: inherit; }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
     .form-group textarea { resize: vertical; min-height: 60px; }
     .plazo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
@@ -786,7 +786,7 @@ function cargarAlertas(cb) {
         html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">';
         html += '<span style="font-size:12px;opacity:.8">Estado: <strong>' + (estadoLabels[ec] || 'Pendiente') + '</strong></span>';
         if (!isInc && nextEstado) {
-          html += '<button onclick="event.stopPropagation();actualizarEstadoCobro(\'' + v.id + '\',\'' + nextEstado + '\')" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer">' + (nextLabels[ec] || 'Avanzar \u2192') + '</button>';
+          html += '<button data-ec="' + ec + '" onclick="event.stopPropagation();avanzarEstadoCobro(this,\'' + v.id + '\')" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer">' + (nextLabels[ec] || 'Avanzar \u2192') + '</button>';
         } else if (isInc) {
           html += '<span style="font-size:11px;padding:4px 8px;border-radius:4px;background:var(--danger-bg);color:var(--danger);font-weight:500">\u26D4 Incobrable</span>';
         }
@@ -1232,23 +1232,25 @@ function whatsappUrl(c, plantilla) {
   return 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
 }
 
-function actualizarEstadoCobro(id, estado) {
-  db.doc('prestamos/' + id).set({ estado_cobro: estado }, { merge: true }).then(function() {
-    toast(estado === 'incobrable' ? 'Marcado como incobrable' : 'Estado actualizado', 'success');
-    if (_currentPage === 'dashboard') {
-      cargarAlertas(function() {
-        var ven = document.querySelector('.alerta-danger');
-        if (ven) {
-          var body = ven.querySelector('.accordion-body');
-          if (body && body.style.display === 'none') {
-            body.style.display = 'block';
-            var ch = ven.querySelector('.acordeon-chevron');
-            if (ch) ch.style.transform = 'rotate(180deg)';
-          }
-        }
-      });
-    }
-  }).catch(function(err) {
+function avanzarEstadoCobro(btn, id) {
+  var ec = btn.getAttribute('data-ec') || '';
+  var estadosSeq = ['', 'primer_aviso', 'segundo_aviso', 'tercer_aviso', 'incobrable'];
+  var estadoLabels = { '': 'Pendiente', 'primer_aviso': '1er reclamo', 'segundo_aviso': '2do reclamo', 'tercer_aviso': '3er reclamo', 'incobrable': 'Incobrable \u26D4' };
+  var nextLabels = { '': '1er reclamo \u2192', 'primer_aviso': '2do reclamo \u2192', 'segundo_aviso': '3er reclamo \u2192', 'tercer_aviso': 'Incobrable \u2192' };
+  var currentIdx = estadosSeq.indexOf(ec);
+  if (currentIdx < 0 || currentIdx >= estadosSeq.length - 1) return;
+  var nextEstado = estadosSeq[currentIdx + 1];
+  var isInc = nextEstado === 'incobrable';
+  var estadoRow = btn.parentNode;
+  var strong = estadoRow.querySelector('strong');
+  if (strong) strong.textContent = estadoLabels[nextEstado];
+  btn.setAttribute('data-ec', nextEstado);
+  if (isInc) {
+    btn.outerHTML = '<span style="font-size:11px;padding:4px 8px;border-radius:4px;background:var(--danger-bg);color:var(--danger);font-weight:500">\u26D4 Incobrable</span>';
+  } else {
+    btn.textContent = nextLabels[nextEstado];
+  }
+  db.doc('prestamos/' + id).set({ estado_cobro: nextEstado }, { merge: true }).catch(function(err) {
     toast('Error: ' + err.message, 'error');
   });
 }
