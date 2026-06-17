@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Préstamos Leo</title>
+  <link rel="manifest" id="manifest-link">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563eb'/%3E%3Ctext x='50' y='72' font-size='64' font-weight='bold' text-anchor='middle' fill='white' font-family='sans-serif'%3E%24%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #dbeafe;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+      --warning: #d97706;
+      --warning-bg: #fffbeb;
+      --bg: #f0f2f5;
+      --surface: #fff;
+      --text: #1e293b;
+      --text2: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,.1);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --header-h: 56px;
+      --nav-h: 64px;
+    }
+    [data-theme="dark"] {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --primary-light: #1e3a5f;
+      --success: #22c55e;
+      --success-bg: #14532d;
+      --danger: #ef4444;
+      --danger-bg: #450a0a;
+      --warning: #f59e0b;
+      --warning-bg: #451a03;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --text: #e2e8f0;
+      --text2: #94a3b8;
+      --border: #334155;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
+    input, button, select, textarea { font-size: 16px; font-family: inherit; }
+    a { color: var(--primary); text-decoration: none; }
+    #loading { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 999; justify-content: center; align-items: center; }
+    #loading.active { display: flex; }
+    #loading > div { background: var(--surface); padding: 24px 32px; border-radius: var(--radius); box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; }
+    .spinner { width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #toast { display: none; position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 12px 24px; border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,.15); font-weight: 500; max-width: 90vw; text-align: center; }
+    #toast.show { display: block; animation: slideDown .3s ease; }
+    #toast.error { background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
+    #toast.success { background: var(--success-bg); color: var(--success); border: 1px solid #bbf7d0; }
+    @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    #page-login { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, #1e3a5f, #2563eb); }
+    #page-login.active { display: flex; }
+    .login-box { background: var(--surface); padding: 32px 24px; border-radius: var(--radius); width: 100%; max-width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .login-box h1 { text-align: center; font-size: 24px; color: var(--primary); margin-bottom: 4px; }
+    .login-box p { text-align: center; color: var(--text2); font-size: 14px; margin-bottom: 24px; }
+    .login-box label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
+    .login-box input { width: 100%; padding: 14px 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 16px; outline: none; transition: border .2s; }
+    .login-box input:focus { border-color: var(--primary); }
+    .login-box button { width: 100%; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 16px; cursor: pointer; transition: background .2s; }
+    .login-box button:active { background: var(--primary-dark); }
+    #app-shell { display: none; flex-direction: column; height: 100vh; }
+    #app-shell.active { display: flex; }
+    header { height: var(--header-h); background: var(--primary); color: #fff; display: flex; align-items: center; padding: 0 16px; position: sticky; top: 0; z-index: 100; gap: 12px; }
+    header h2 { font-size: 18px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    header .btn-icon { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; }
+    header .btn-icon:active { background: rgba(255,255,255,.15); }
+
+    /* Modal de instalación */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+    .modal-box { background: var(--surface); color: var(--text); border-radius: 16px; padding: 28px 24px; max-width: 380px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,.3); white-space: pre-line; line-height: 1.7; }
+    .modal-box h3 { margin: 0 0 12px 0; font-size: 18px; }
+    .modal-box .btn-cerrar { display: block; width: 100%; margin-top: 18px; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; text-align: center; }
+    .modal-box .form-group { margin-bottom: 12px; }
+    .modal-box .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 3px; color: var(--text); }
+    .modal-box .form-group input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; background: var(--bg); color: var(--text); }
+    #content { flex: 1; overflow-y: auto; padding: 16px 16px calc(16px + var(--nav-h)); }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .stat-card { background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .stat-card .label { font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--text2); font-weight: 600; }
+    .stat-card .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .stat-card .value.green { color: var(--success); }
+    .stat-card .value.blue { color: var(--primary); }
+    .stat-card .value.orange { color: var(--warning); }
+    .stat-card .value.red { color: var(--danger); }
+    .section { background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .section h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+    .list-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px; cursor: pointer; }
+    .list-item:last-child { border-bottom: none; }
+    .list-item:active { background: var(--primary-light); margin: 0 -12px; padding: 12px; border-radius: var(--radius-sm); }
+    .list-item .info { flex: 1; min-width: 0; }
+    .list-item .name { font-weight: 500; font-size: 15px; }
+    .list-item .sub { font-size: 13px; color: var(--text2); }
+    .list-item .right { text-align: right; flex-shrink: 0; }
+    .list-item .right .amount { font-weight: 600; font-size: 15px; }
+    .list-item .right .status { font-size: 12px; padding: 2px 8px; border-radius: 99px; display: inline-block; margin-top: 2px; }
+    .status.pendiente { background: var(--warning-bg); color: var(--warning); }
+    .status.pagado { background: var(--success-bg); color: var(--success); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; border: none; border-radius: var(--radius-sm); font-weight: 600; font-size: 15px; cursor: pointer; transition: background .2s; min-height: 44px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:active { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:active { background: #15803d; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:active { background: #b91c1c; }
+    .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+    .btn-outline:active { background: var(--primary-light); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; min-height: 36px; }
+    .btn-block { width: 100%; }
+    .fab { position: fixed; bottom: calc(var(--nav-h) + 16px); right: 16px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: #fff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 12px rgba(37,99,235,.4); display: flex; align-items: center; justify-content: center; z-index: 50; }
+    .fab:active { transform: scale(.92); }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; transition: border .2s; background: var(--surface); }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .plazo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .plazo-opt { display: flex; align-items: center; justify-content: center; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all .2s; text-align: center; min-height: 60px; }
+    .plazo-opt input { display: none; }
+    .plazo-opt span { font-size: 13px; font-weight: 500; color: var(--text2); }
+    .plazo-opt span b { display: block; font-size: 15px; color: var(--text); margin-bottom: 2px; }
+    .plazo-opt:has(input:checked) { border-color: var(--primary); background: var(--primary-light); }
+    .plazo-opt:has(input:checked) span { color: var(--primary); }
+    .plazo-opt:has(input:checked) span b { color: var(--primary); }
+    .resumen-card { background: var(--primary-light); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 16px; }
+    .resumen-card .row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 15px; }
+    .resumen-card .row.total { font-size: 18px; font-weight: 700; color: var(--primary); border-top: 2px solid var(--primary); margin-top: 8px; padding-top: 8px; }
+    .tabs { display: flex; gap: 4px; background: var(--surface); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    .tab { flex: 1; padding: 10px; border: none; background: none; border-radius: 6px; font-weight: 500; font-size: 14px; color: var(--text2); cursor: pointer; transition: all .2s; }
+    .tab.active { background: var(--primary); color: #fff; }
+    .tab:active { background: var(--primary-light); }
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-h); background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: none; background: none; color: var(--text2); font-size: 11px; font-weight: 500; cursor: pointer; padding: 4px; transition: color .2s; }
+    .nav-item .icon { font-size: 22px; line-height: 1; }
+    .nav-item.active { color: var(--primary); }
+    .nav-item:active { background: var(--primary-light); }
+    .report-controls { display: flex; gap: 8px; margin-bottom: 16px; }
+    .report-controls select { flex: 1; padding: 10px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; font-size: 15px; background: var(--surface); }
+    .report-controls select:focus { border-color: var(--primary); }
+    .config-section { background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .config-section h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .back-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+    .back-row button { background: none; border: none; font-size: 24px; cursor: pointer; padding: 4px; color: var(--text); min-width: 40px; min-height: 40px; }
+    .cliente-header { background: var(--surface); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; text-align: center; }
+    .cliente-header h2 { font-size: 20px; margin-bottom: 4px; }
+    .cliente-header .phone { color: var(--text2); font-size: 15px; }
+    .cliente-header .stats { display: flex; justify-content: center; gap: 24px; margin-top: 12px; }
+    .cliente-header .stats > div { text-align: center; }
+    .cliente-header .stats .num { font-size: 20px; font-weight: 700; }
+    .cliente-header .stats .lbl { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
+    .alerta { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 14px; }
+    .alerta .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .alerta .body { flex: 1; }
+    .alerta .body strong { display: block; font-size: 15px; margin-bottom: 2px; }
+    .alerta .body .sub { font-size: 13px; opacity: .85; }
+    .alerta-danger { background: var(--danger-bg); border: 1px solid #fecaca; color: var(--danger); }
+    .alerta-warning { background: var(--warning-bg); border: 1px solid #fde68a; color: var(--warning); }
+    .alerta-info { background: var(--primary-light); border: 1px solid #bfdbfe; color: var(--primary); }
+    .cliente-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cliente-info-item { font-size: 14px; }
+    .cliente-info-item .lbl { color: var(--text2); font-size: 12px; font-weight: 500; }
+    .empty { text-align: center; padding: 32px 16px; color: var(--text2); }
+    .empty .icon { font-size: 48px; margin-bottom: 8px; }
+    @media (min-width: 768px) {
+      #content { max-width: 720px; margin: 0 auto; padding-bottom: 16px; }
+      .bottom-nav { max-width: 720px; left: 50%; transform: translateX(-50%); border-radius: var(--radius) var(--radius) 0 0; }
+      .fab { right: calc(50% - 360px + 16px); }
+      .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading"><div><div class="spinner"></div><span>Cargando...</span></div></div>
+  <div id="toast"></div>
+
+  <div id="page-login" class="active">
+    <div class="login-box">
+      <h1>💰 Préstamos Leo</h1>
+      <p>Accedé a tu panel de control</p>
+      <form id="form-login" onsubmit="return handleLogin(event)">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email" required>
+        <label for="login-pass">Contraseña</label>
+        <input type="password" id="login-pass" placeholder="Ingresá tu contraseña" autocomplete="current-password" required>
+        <button type="submit">Ingresar</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-shell">
+    <div id="offline-banner" style="display:none;background:var(--warning);color:#000;text-align:center;padding:6px 12px;font-size:13px;font-weight:500">📡 Sin conexión — los cambios se sincronizarán automáticamente</div>
+    <header>
+      <button class="btn-icon" id="btn-back" style="display:none" onclick="goBack()">←</button>
+      <h2 id="header-title">Dashboard</h2>
+      <button class="btn-icon" onclick="mostrarInstalar()" title="Cómo instalar">📲</button>
+      <button class="btn-icon" id="btn-darkmode" onclick="toggleDarkMode()">🌙</button>
+      <button class="btn-icon" onclick="handleLogout()">🚪</button>
+    </header>
+    <div id="content">
+
+      <div id="page-dashboard" class="page active">
+        <div id="alertas-section" style="margin-bottom:12px"></div>
+        <div class="stats-grid" id="dash-stats">
+          <div class="stat-card"><div class="label">Prestado (Mes)</div><div class="value blue" id="dash-prestado">$ 0</div></div>
+          <div class="stat-card"><div class="label">Recuperado (Mes)</div><div class="value green" id="dash-recuperado">$ 0</div></div>
+          <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="dash-circulacion">$ 0</div></div>
+          <div class="stat-card"><div class="label">Ganancias (Mes)</div><div class="value green" id="dash-ganancias">$ 0</div></div>
+        </div>
+        <div class="section">
+          <h3>Últimos cobros</h3>
+          <div id="dash-ultimos"><div class="empty"><div class="icon">📭</div><p>Sin movimientos este mes</p></div></div>
+        </div>
+      </div>
+
+      <div id="page-clientes" class="page">
+        <div class="form-group" style="margin-bottom:12px">
+          <input type="search" id="search-cliente" placeholder="🔍 Buscar cliente..." oninput="renderClientes()">
+        </div>
+        <div id="clientes-list"></div>
+        <button class="fab" onclick="abrirNuevoCliente()">+</button>
+      </div>
+
+      <div id="page-cliente-form" class="page">
+        <div class="back-row"><button onclick="navigate('clientes')">←</button><span style="font-weight:600;font-size:18px" id="cliente-form-title">Nuevo Cliente</span></div>
+        <div class="section">
+          <form id="form-cliente" onsubmit="return guardarCliente(event)">
+            <input type="hidden" id="cliente-id">
+            <div class="form-group">
+              <label>Nombre *</label>
+              <input type="text" id="cliente-nombre" required>
+            </div>
+            <div class="form-group">
+              <label>Teléfono</label>
+              <input type="tel" id="cliente-telefono" inputmode="numeric" placeholder="Ej: 1123456789">
+            </div>
+            <div class="form-group">
+              <label>DNI</label>
+              <input type="text" id="cliente-dni" inputmode="numeric" placeholder="DNI sin puntos">
+            </div>
+            <div class="form-group">
+              <label>Dirección</label>
+              <input type="text" id="cliente-direccion" placeholder="Calle y número">
+            </div>
+            <div class="form-group">
+              <label>Tasa preferencial (%) <span style="color:var(--text2);font-weight:400">(opcional)</span></label>
+              <input type="number" id="cliente-tasa" inputmode="numeric" step="1" min="0" placeholder="Ej: 35">
+            </div>
+            <div class="form-group">
+              <label>📋 Señas / Referencias</label>
+              <textarea id="cliente-notas" rows="3" placeholder="Ej: Casa rosa al lado de las rejas, el colectivo 45 te deja en dos cuadras, etc."></textarea>
+            </div>
+            <div class="form-group">
+              <label>📋 Campos adicionales</label>
+              <div id="custom-fields">
+                <div class="custom-field-row" style="display:flex;gap:8px;margin-bottom:6px">
+                  <input type="text" class="cf-name" placeholder="Nombre (ej: Colectivo)" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">
+                  <input type="text" class="cf-value" placeholder="Valor (ej: 45)" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">
+                  <button type="button" onclick="removeCustomField(this)" style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;padding:4px;min-width:40px">✕</button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="addCustomField()" style="margin-top:4px">+ Agregar campo</button>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Guardar Cliente</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="page-cliente-detalle" class="page">
+        <div class="back-row"><button onclick="navigate('clientes')">←</button><span style="font-weight:600;font-size:18px">Detalle</span></div>
+        <div class="cliente-header" id="cliente-detalle-info"></div>
+        <div id="cliente-detalle-extras" class="section" style="display:none"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button class="btn btn-primary btn-block" onclick="irANuevoPrestamo()">+ Nuevo Préstamo</button>
+          <button class="btn btn-outline" onclick="editarClienteActual()" style="flex-shrink:0">✏️</button>
+          <button class="btn btn-danger" onclick="eliminarClienteActual()" style="flex-shrink:0">🗑️</button>
+        </div>
+        <div class="section">
+          <h3>Historial de Préstamos</h3>
+          <div id="cliente-prestamos-list"></div>
+        </div>
+      </div>
+
+      <div id="page-prestamos" class="page">
+        <div class="tabs" id="prestamos-tabs">
+          <button class="tab active" data-filtro="pendientes" onclick="filtrarPrestamos('pendientes')">Pendientes</button>
+          <button class="tab" data-filtro="pagados" onclick="filtrarPrestamos('pagados')">Pagados</button>
+          <button class="tab" data-filtro="todos" onclick="filtrarPrestamos('todos')">Todos</button>
+        </div>
+        <div id="prestamos-list"></div>
+      </div>
+
+      <div id="page-prestamo-detalle" class="page">
+        <div class="back-row"><button onclick="navigate('prestamos')">←</button><span style="font-weight:600;font-size:18px">Detalle de Préstamo</span></div>
+        <div id="prestamo-detalle-card" class="section"></div>
+        <div id="prestamo-detalle-cliente" class="section" style="display:none"><h3>👤 Datos del Cliente</h3><div id="prestamo-detalle-cliente-body"></div></div>
+      </div>
+
+      <div id="page-nuevo-prestamo" class="page">
+        <div class="back-row"><button onclick="volverDeNuevoPrestamo()">←</button><span style="font-weight:600;font-size:18px">Nuevo Préstamo</span></div>
+        <div class="section">
+          <form id="form-prestamo" onsubmit="return guardarPrestamo(event)">
+            <div class="form-group">
+              <label>Cliente *</label>
+              <select id="prestamo-cliente" required onchange="onCambioCliente()">
+                <option value="">Seleccionar cliente...</option>
+              </select>
+            </div>
+            <div id="prestamo-cliente-info" style="display:none" class="resumen-card"></div>
+            <div class="form-group">
+              <label>Monto a prestar ($) *</label>
+              <input type="number" id="prestamo-monto" inputmode="numeric" step="1" min="1" required placeholder="Ej: 1000" oninput="calcularPrestamo()">
+            </div>
+            <div class="form-group">
+              <label>Plazo</label>
+              <div class="plazo-grid" id="plazo-opts">
+                <label class="plazo-opt">
+                  <input type="radio" name="plazo" value="7" onchange="calcularPrestamo()">
+                  <span><b>7 días</b>40%</span>
+                </label>
+                <label class="plazo-opt">
+                  <input type="radio" name="plazo" value="15" checked onchange="calcularPrestamo()">
+                  <span><b>15 días</b>60%</span>
+                </label>
+                <label class="plazo-opt">
+                  <input type="radio" name="plazo" value="30" onchange="calcularPrestamo()">
+                  <span><b>30 días</b>80%</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Fecha de inicio</label>
+              <input type="date" id="prestamo-fecha">
+            </div>
+            <div id="prestamo-resumen" class="resumen-card" style="display:none">
+              <div class="row"><span>Monto</span><span id="res-monto">$ 0</span></div>
+              <div class="row"><span>Tasa</span><span id="res-tasa">0%</span></div>
+              <div class="row"><span>Interés</span><span id="res-interes">$ 0</span></div>
+              <div class="row total"><span>Total a pagar</span><span id="res-total">$ 0</span></div>
+            </div>
+            <button type="submit" class="btn btn-success btn-block">Guardar Préstamo</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="page-reportes" class="page">
+        <div class="report-controls">
+          <select id="report-mes" onchange="cargarReporte()">
+            <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+            <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+            <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+            <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+          </select>
+          <select id="report-anio" onchange="cargarReporte()"></select>
+        </div>
+        <div class="stats-grid" id="report-stats">
+          <div class="stat-card"><div class="label">Prestado</div><div class="value blue" id="rep-prestado">$ 0</div></div>
+          <div class="stat-card"><div class="label">Recuperado</div><div class="value green" id="rep-recuperado">$ 0</div></div>
+          <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="rep-circulacion">$ 0</div></div>
+          <div class="stat-card"><div class="label">Ganancias</div><div class="value green" id="rep-ganancias">$ 0</div></div>
+        </div>
+        <div class="section">
+          <h3>Detalle de préstamos</h3>
+          <div id="report-detalle"></div>
+        </div>
+      </div>
+
+      <div id="page-simular" class="page">
+        <div class="back-row"><button onclick="navigate('prestamos')">←</button><span style="font-weight:600;font-size:18px">🧮 Simular Préstamo</span></div>
+        <div class="section">
+          <div class="form-group">
+            <label>Monto a simular ($) *</label>
+            <input type="number" id="sim-monto" inputmode="numeric" step="1" min="1" placeholder="Ej: 1000" oninput="calcularSimulacion()">
+          </div>
+          <div class="form-group">
+            <label>Plazo</label>
+            <div class="plazo-grid">
+              <label class="plazo-opt">
+                <input type="radio" name="sim-plazo" value="7" onchange="calcularSimulacion()">
+                <span><b>7 días</b></span>
+              </label>
+              <label class="plazo-opt">
+                <input type="radio" name="sim-plazo" value="15" checked onchange="calcularSimulacion()">
+                <span><b>15 días</b></span>
+              </label>
+              <label class="plazo-opt">
+                <input type="radio" name="sim-plazo" value="30" onchange="calcularSimulacion()">
+                <span><b>30 días</b></span>
+              </label>
+            </div>
+          </div>
+          <div id="sim-resultado" style="display:none">
+            <div class="resumen-card" style="margin-bottom:12px">
+              <div class="row"><span>Monto</span><span id="sim-r-monto">$ 0</span></div>
+              <div class="row"><span>Tasa</span><span id="sim-r-tasa">0%</span></div>
+              <div class="row"><span>Interés</span><span id="sim-r-interes">$ 0</span></div>
+              <div class="row total"><span>Total a pagar</span><span id="sim-r-total">$ 0</span></div>
+            </div>
+            <div class="form-group">
+              <label>📋 Texto para enviar</label>
+              <textarea id="sim-texto" rows="5" style="font-size:14px;width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-family:monospace" readonly></textarea>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="copiarSimulacion()">📋 Copiar para enviar por WhatsApp</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-config" class="page">
+        <div class="config-section">
+          <h3>💰 Tasas de interés</h3>
+          <form id="form-tasas" onsubmit="return guardarTasas(event)">
+            <div class="form-group">
+              <label>📅 7 días (%)</label>
+              <input type="number" id="cfg-tasa-7d" inputmode="numeric" step="1" min="0" required>
+            </div>
+            <div class="form-group">
+              <label>📅 15 días (%)</label>
+              <input type="number" id="cfg-tasa-15d" inputmode="numeric" step="1" min="0" required>
+            </div>
+            <div class="form-group">
+              <label>📅 30 días (%)</label>
+              <input type="number" id="cfg-tasa-30d" inputmode="numeric" step="1" min="0" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Guardar Tasas</button>
+          </form>
+        </div>
+        <div class="config-section">
+          <h3>💬 Mensajes de WhatsApp</h3>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Usá <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{nombre}</code> <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{telefono}</code> <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{fecha_vence}</code> como marcadores</p>
+          <form id="form-mensajes" onsubmit="return guardarMensajes(event)">
+            <div class="form-group">
+              <label>📲 Mensaje de recordatorio</label>
+              <textarea id="cfg-msg-recordatorio" rows="3" style="font-size:14px" placeholder="Ej: Hola {nombre}, te recordamos tu préstamo."></textarea>
+            </div>
+            <div class="form-group">
+              <label>🔴 Mensaje para vencidos</label>
+              <textarea id="cfg-msg-vencido" rows="3" style="font-size:14px" placeholder="Ej: Hola {nombre}, el préstamo venció el {fecha_vence}, necesito que te pongas al día."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Guardar Mensajes</button>
+          </form>
+        </div>
+        <div class="config-section">
+          <h3>🔑 Cambiar contraseña</h3>
+          <p style="font-size:14px;color:var(--text2);margin-bottom:12px">La contraseña se cambia desde la consola de Firebase (Authentication → Usuarios)</p>
+        </div>
+      </div>
+
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span>Inicio</button>
+      <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">👥</span>Clientes</button>
+      <button class="nav-item" data-page="prestamos" onclick="navigate('prestamos')"><span class="icon" style="position:relative">💰<span id="badge-prestamos" style="display:none;position:absolute;top:-6px;right:-12px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:99px;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 1px 3px rgba(0,0,0,.3)">0</span></span>Préstamos</button>
+      <button class="nav-item" data-page="simular" onclick="navigate('simular')"><span class="icon">🧮</span>Simular</button>
+      <button class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">📈</span>Reportes</button>
+      <button class="nav-item" data-page="config" onclick="navigate('config')"><span class="icon">⚙️</span>Config</button>
+    </nav>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script>
+firebase.initializeApp({
+  apiKey: "AIzaSyCcPaqOTXBVB1xv7ZwRfxG0HQ6ctIu8l5o",
+  authDomain: "prestamosleo.firebaseapp.com",
+  projectId: "prestamosleo",
+  storageBucket: "prestamosleo.firebasestorage.app",
+  messagingSenderId: "640812304372",
+  appId: "1:640812304372:web:0c77b00ba92f89e9499ba1"
+});
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* PWA manifest via Blob */
+(function() {
+  var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#2563eb"/><text x="50" y="72" font-size="64" font-weight="bold" text-anchor="middle" fill="white" font-family="sans-serif">$</text></svg>';
+  var iconData = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+  var manifest = {
+    name: "Pr\u00e9stamos Leo",
+    short_name: "Pr\u00e9stamos Leo",
+    start_url: "Index.html?v=2",
+    display: "standalone",
+    background_color: "#0f172a",
+    theme_color: "#2563eb",
+    icons: [{ src: iconData, sizes: "192x192", type: "image/svg+xml" }]
+  };
+  var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  document.getElementById('manifest-link').href = URL.createObjectURL(blob);
+})();
+
+/* Offline persistence */
+var _offline = !navigator.onLine;
+db.enablePersistence({synchronizeTabs:true}).catch(function(err) {
+  if (err.code === 'failed-precondition') console.warn('Persistencia no disponible (múltiples pestañas)');
+  else if (err.code === 'unimplemented') console.warn('Persistencia no soportada en este navegador');
+});
+window.addEventListener('online', function() {
+  _offline = false;
+  document.getElementById('offline-banner').style.display = 'none';
+  toast('📶 Conexión restablecida — sincronizando datos', 'success');
+  recargarPaginaActual();
+});
+window.addEventListener('offline', function() {
+  _offline = true;
+  document.getElementById('offline-banner').style.display = 'block';
+  toast('📶 Sin conexión — los cambios se guardarán localmente', 'warning');
+});
+
+function normalizarFecha(str) {
+  if (!str) return '';
+  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return str;
+  var m2 = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m2) return m2[3] + '-' + m2[2] + '-' + m2[1];
+  return str;
+}
+
+function desglosarFecha(str) {
+  var p = (str || '').split('-');
+  if (p.length === 3) return { anio: parseInt(p[0]), mes: parseInt(p[1]) - 1, dia: parseInt(p[2]) };
+  return { anio: 0, mes: -1, dia: 0 };
+}
+
+function msgExito(texto) { return { msg: _offline ? '📦 ' + texto + ' — se sincronizará cuando haya conexión' : texto + ' ✅', tipo: _offline ? 'warning' : 'success' }; }
+
+function recargarPaginaActual() {
+  var page = _currentPage;
+  if (page === 'prestamos') { cargarPrestamos(); }
+  else if (page === 'dashboard') { cargarDashboard(); }
+  else if (page === 'reportes') { cargarReporte(); }
+  else if (page === 'clientes') { cargarClientes(); }
+}
+
+var _clientes = [];
+var _clienteActual = null;
+var _filtroPrestamos = 'pendientes';
+var _currentPage = 'dashboard';
+var _notifiedIds = {};
+
+function mostrarLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
+
+function toast(msg, tipo) {
+  console.log('[Toast ' + (tipo || 'info') + ']', msg);
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (tipo || 'success');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(function() { t.className = ''; }, 4000);
+}
+
+function pesos(n) {
+  if (n === 0 || n === null || n === undefined) return '$ 0';
+  return '$ ' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+auth.onAuthStateChanged(function(user) {
+  if (user) {
+    document.getElementById('page-login').classList.remove('active');
+    document.getElementById('app-shell').classList.add('active');
+    getDoc('config/settings', function(cfg) {
+      window._config = cfg || {};
+    });
+    actualizarBadgePrestamos();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+    navigate('prestamos');
+  } else {
+    document.getElementById('app-shell').classList.remove('active');
+    document.getElementById('page-login').classList.add('active');
+  }
+});
+
+function handleLogin(e) {
+  e.preventDefault();
+  var btn = document.querySelector('#form-login button');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  var email = document.getElementById('login-email').value.trim();
+  var pass = document.getElementById('login-pass').value;
+  if (!email || !pass) { btn._enviando = false; return; }
+  mostrarLoading(true);
+  auth.signInWithEmailAndPassword(email, pass).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    if (err.code === 'auth/user-not-found') {
+      toast('Usuario no encontrado. Verificá el email o creá el usuario en Firebase Console', 'error');
+    } else if (err.code === 'auth/wrong-password') {
+      toast('Contraseña incorrecta', 'error');
+    } else {
+      toast(err.message, 'error');
+    }
+  });
+}
+
+function handleLogout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  auth.signOut();
+}
+
+function getDocsParallel(queries, cb) {
+  Promise.all(queries).then(function(results) {
+    cb(results.map(function(snap) {
+      if (snap.docs) {
+        return snap.docs.map(function(d) { var o = d.data(); o.id = d.id; return o; });
+      }
+      return snap.exists ? snap.data() : null;
+    }));
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function getDoc(path, cb) {
+  db.doc(path).get().then(function(snap) {
+    cb(snap.exists ? snap.data() : null);
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function setDoc(path, data, cb) {
+  db.doc(path).set(data).then(function() {
+    if (cb) cb();
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function getCol(path, cb) {
+  db.collection(path).get().then(function(snap) {
+    cb(snap.docs.map(function(d) { var o = d.data(); o.id = d.id; return o; }));
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function getColFilter(path, field, op, val, cb) {
+  db.collection(path).where(field, op, val).get().then(function(snap) {
+    cb(snap.docs.map(function(d) { var o = d.data(); o.id = d.id; return o; }));
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function addDoc(path, data, cb) {
+  db.collection(path).add(data).then(function(ref) {
+    if (cb) cb(ref.id);
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function updateDoc(path, data, cb) {
+  db.doc(path).update(data).then(function() {
+    if (cb) cb();
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function deleteDoc(path, cb) {
+  db.doc(path).delete().then(function() {
+    if (cb) cb();
+  }).catch(function(err) {
+    toast(err.message, 'error');
+  });
+}
+
+function navigate(page) {
+  _currentPage = page;
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  var titles = {
+    dashboard: 'Pr\u00e9stamos Leo', clientes: 'Clientes', 'cliente-form': 'Cliente',
+    'cliente-detalle': 'Detalle', prestamos: 'Pr\u00e9stamos', 'prestamo-detalle': 'Detalle',
+    'nuevo-prestamo': 'Nuevo Pr\u00e9stamo', 'simular': 'Simular', reportes: 'Reportes', config: 'Config'
+  };
+  document.getElementById('header-title').textContent = titles[page] || 'Mis Pr\u00e9stamos';
+  var showBack = page === 'cliente-form' || page === 'cliente-detalle' || page === 'nuevo-prestamo' || page === 'prestamo-detalle' || page === 'simular';
+  document.getElementById('btn-back').style.display = showBack ? '' : 'none';
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    n.classList.toggle('active', n.dataset.page === page);
+  });
+  if (page === 'clientes') {
+    document.getElementById('search-cliente').value = '';
+    cargarClientes();
+  }
+  if (page === 'dashboard') cargarDashboard();
+  if (page === 'prestamos') cargarPrestamos();
+  if (page === 'reportes') cargarReporte();
+  if (page === 'config') cargarConfig();
+}
+
+function goBack() {
+  if (_currentPage === 'cliente-form' || _currentPage === 'cliente-detalle') navigate('clientes');
+  else if (_currentPage === 'nuevo-prestamo' || _currentPage === 'prestamo-detalle' || _currentPage === 'simular') navigate('prestamos');
+  else navigate('dashboard');
+}
+
+function cargarAlertas() {
+  getDocsParallel([db.collection('prestamos').get(), db.collection('clientes').get()], function(results) {
+    var ps = results[0], clientes = results[1];
+    var cmap = {}, telmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; telmap[c.id] = c.telefono || ''; });
+    var ahora = new Date();
+    var hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    var vencidos = [], venceHoy = [], proximos = [];
+    ps.forEach(function(p) {
+      if (p.estado !== 'Pendiente') return;
+      var partes = p.fecha_vence.split('-');
+      var vence = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+      var diff = Math.ceil((vence - hoy) / (1000 * 60 * 60 * 24));
+      var info = { id: p.id, cliente_id: p.cliente_id, total: p.total, fecha_vence: p.fecha_vence, dias: diff };
+      if (diff < 0) vencidos.push(info);
+      else if (diff === 0) venceHoy.push(info);
+      else if (diff <= 2) proximos.push(info);
+    });
+    var html = '';
+    if (vencidos.length) {
+      html += '<div class="alerta alerta-danger"><span class="icon">🔴</span><div class="body"><strong>' + vencidos.length + ' vencido' + (vencidos.length > 1 ? 's' : '') + '</strong>';
+      vencidos.forEach(function(v) {
+        var nom = cmap[v.cliente_id] || '?';
+        var tel = telmap[v.cliente_id] || '';
+        var fechaFormateada = v.fecha_vence.split('-').reverse().join('/');
+        var plantilla = (window._config || {}).mensaje_vencido || 'Hola {nombre}, te recuerdo que el plazo de pago venci\u00f3 el d\u00eda {fecha_vence} por favor necesito que te pongas al d\u00eda.';
+        var texto = plantilla.replace(/\{nombre\}/g, nom).replace(/\{fecha_vence\}/g, fechaFormateada);
+        var waLink = '#';
+        if (tel) {
+          var telNum = String(tel).replace(/\D/g, '');
+          if (!telNum.startsWith('54')) telNum = '54' + telNum;
+          waLink = 'https://wa.me/' + telNum + '?text=' + encodeURIComponent(texto);
+        }
+        html += '<div class="sub" style="display:flex;justify-content:space-between;align-items:center">';
+        html += '<span>' + esc(nom) + ' · ' + pesos(v.total) + ' · venci\u00f3 hace ' + Math.abs(v.dias) + ' d\u00eda' + (Math.abs(v.dias) > 1 ? 's' : '') + '</span>';
+        if (tel) html += '<a href="' + waLink + '" target="_blank" style="color:#25D366;font-size:20px;text-decoration:none;flex-shrink:0">📱</a>';
+        html += '</div>';
+
+      });
+      html += '</div></div>';
+    }
+    if (venceHoy.length) {
+      html += '<div class="alerta alerta-warning"><span class="icon">🟡</span><div class="body"><strong>Vencen hoy</strong>';
+      venceHoy.forEach(function(v) {
+        html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + '</div>';
+      });
+      html += '</div></div>';
+    }
+    if (proximos.length) {
+      html += '<div class="alerta alerta-info"><span class="icon">🔵</span><div class="body"><strong>Próximos a vencer (' + proximos.length + ')</strong>';
+      proximos.forEach(function(v) {
+        html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + ' · vence en ' + v.dias + ' día' + (v.dias > 1 ? 's' : '') + ' (' + v.fecha_vence + ')</div>';
+      });
+      html += '</div></div>';
+    }
+    document.getElementById('alertas-section').innerHTML = html || '';
+    if (vencidos.length && 'Notification' in window && Notification.permission === 'granted') {
+      var sinNotificar = vencidos.filter(function(v) { return !_notifiedIds[v.id]; });
+      if (sinNotificar.length && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'notificar-prestamos',
+          title: '🔴 ' + sinNotificar.length + ' préstamo' + (sinNotificar.length > 1 ? 's' : '') + ' vencido' + (sinNotificar.length > 1 ? 's' : ''),
+          body: sinNotificar.map(function(v) { return (cmap[v.cliente_id] || '?') + ' — ' + pesos(v.total); }).join('\n')
+        });
+        sinNotificar.forEach(function(v) { _notifiedIds[v.id] = true; });
+      }
+    }
+  });
+}
+
+function cargarDashboard() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  cargarAlertas();
+  mostrarLoading(true);
+  var ahora = new Date();
+  var mes = ahora.getMonth();
+  var anio = ahora.getFullYear();
+  getDocsParallel([db.collection('prestamos').get(), db.collection('pagos').get(), db.collection('clientes').get()], function(results) {
+    var ps = results[0], pgs = results[1], clientes = results[2];
+    mostrarLoading(false);
+    var prestadoMes = 0, recuperadoMes = 0, circulacion = 0, gananciasMes = 0;
+    var pagosProcessed = [];
+    ps.forEach(function(p) {
+      var fi = desglosarFecha(p.fecha_inicio);
+      if (fi.mes === mes && fi.anio === anio) prestadoMes += p.monto;
+      if (p.estado === 'Pendiente') circulacion += p.total;
+    });
+    pgs.forEach(function(pg) {
+      var fp = desglosarFecha(pg.fecha);
+      if (fp.mes === mes && fp.anio === anio) {
+        recuperadoMes += pg.monto;
+        var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
+        if (prestamo) {
+          gananciasMes += (prestamo.total - prestamo.monto);
+          pagosProcessed.push({ clienteId: prestamo.cliente_id, monto: pg.monto, fecha: pg.fecha });
+        }
+      }
+    });
+    pagosProcessed.sort(function(a, b) { return b.fecha.localeCompare(a.fecha); });
+    pagosProcessed = pagosProcessed.slice(0, 5);
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    document.getElementById('dash-prestado').textContent = pesos(prestadoMes);
+    document.getElementById('dash-recuperado').textContent = pesos(recuperadoMes);
+    document.getElementById('dash-circulacion').textContent = pesos(circulacion);
+    document.getElementById('dash-ganancias').textContent = pesos(gananciasMes);
+    var html = '';
+    if (pagosProcessed.length) {
+      pagosProcessed.forEach(function(u) {
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(cmap[u.clienteId] || '?') + '</div><div class="sub">' + u.fecha + '</div></div><div class="right"><div class="amount" style="color:var(--success)">' + pesos(u.monto) + '</div></div></div>';
+      });
+    } else {
+      html = '<div class="empty"><div class="icon">📭</div><p>Sin movimientos este mes</p></div>';
+    }
+    document.getElementById('dash-ultimos').innerHTML = html;
+  });
+}
+
+function cargarClientes(cb) {
+  mostrarLoading(true);
+  getDocsParallel([db.collection('clientes').get(), db.collection('prestamos').get()], function(results) {
+    mostrarLoading(false);
+    _clientes = results[0];
+    var ps = results[1];
+    var pendientes = {};
+    ps.forEach(function(p) {
+      if (p.estado !== 'Pendiente') return;
+      if (!pendientes[p.cliente_id]) pendientes[p.cliente_id] = { count: 0, total: 0 };
+      pendientes[p.cliente_id].count++;
+      pendientes[p.cliente_id].total += p.total;
+    });
+    _clientes.forEach(function(c) {
+      c.total_prestamos = pendientes[c.id] ? pendientes[c.id].count : 0;
+      c.pendiente = pendientes[c.id] ? pendientes[c.id].total : 0;
+    });
+    renderClientes();
+    if (cb) cb();
+  });
+}
+
+function renderClientes() {
+  var q = (document.getElementById('search-cliente').value || '').toLowerCase();
+  var f = _clientes.filter(function(c) {
+    return (c.nombre || '').toLowerCase().includes(q) || (c.telefono || '').includes(q);
+  });
+  var html = '<div class="section">';
+  if (!f.length) {
+    html += '<div class="empty"><div class="icon">👥</div><p>' + (q ? 'Sin resultados' : 'No hay clientes aún. Tocá + para agregar') + '</p></div>';
+  } else {
+    f.forEach(function(c) {
+      var badge = '';
+      if (c.pendiente > 0) badge = '<span class="status pendiente">' + pesos(c.pendiente) + '</span>';
+      else if (c.total_prestamos > 0) badge = '<span class="status pagado">Pagado</span>';
+      html += '<div class="list-item" onclick="verCliente(\'' + c.id + '\')">';
+      html += '<div class="info"><div class="name">' + esc(c.nombre) + '</div><div class="sub">📱 ' + esc(c.telefono || '-') + ' · ' + c.total_prestamos + ' préstamos</div></div>';
+      html += '<div class="right">' + badge + '</div></div>';
+    });
+  }
+  html += '</div>';
+  document.getElementById('clientes-list').innerHTML = html;
+}
+
+function abrirNuevoCliente() {
+  document.getElementById('cliente-id').value = '';
+  document.getElementById('cliente-nombre').value = '';
+  document.getElementById('cliente-telefono').value = '';
+  document.getElementById('cliente-dni').value = '';
+  document.getElementById('cliente-direccion').value = '';
+  document.getElementById('cliente-tasa').value = '';
+  document.getElementById('cliente-notas').value = '';
+  document.getElementById('cliente-form-title').textContent = 'Nuevo Cliente';
+  document.getElementById('custom-fields').innerHTML =
+    '<div class="custom-field-row" style="display:flex;gap:8px;margin-bottom:6px">' +
+    '<input type="text" class="cf-name" placeholder="Nombre (ej: Colectivo)" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">' +
+    '<input type="text" class="cf-value" placeholder="Valor (ej: 45)" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">' +
+    '<button type="button" onclick="removeCustomField(this)" style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;padding:4px;min-width:40px">✕</button></div>';
+  navigate('cliente-form');
+}
+
+function editarClienteActual() {
+  var c = _clienteActual;
+  if (!c) return;
+  document.getElementById('cliente-id').value = c.id;
+  document.getElementById('cliente-nombre').value = c.nombre;
+  document.getElementById('cliente-telefono').value = c.telefono || '';
+  document.getElementById('cliente-dni').value = c.dni || '';
+  document.getElementById('cliente-direccion').value = c.direccion || '';
+  document.getElementById('cliente-tasa').value = c.tasa_preferencial || '';
+  document.getElementById('cliente-notas').value = c.notas || '';
+  document.getElementById('cliente-form-title').textContent = 'Editar Cliente';
+  var container = document.getElementById('custom-fields');
+  container.innerHTML = '';
+  var extra = {};
+  try { extra = JSON.parse(c.extra_campos || '{}'); } catch(e) {}
+  var keys = Object.keys(extra);
+  if (!keys.length) keys.push('');
+  keys.forEach(function(k) {
+    var row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.style.cssText = 'display:flex;gap:8px;margin-bottom:6px';
+    row.innerHTML =
+      '<input type="text" class="cf-name" placeholder="Nombre" value="' + esc(k) + '" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">' +
+      '<input type="text" class="cf-value" placeholder="Valor" value="' + esc(extra[k] || '') + '" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">' +
+      '<button type="button" onclick="removeCustomField(this)" style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;padding:4px;min-width:40px">✕</button>';
+    container.appendChild(row);
+  });
+  navigate('cliente-form');
+}
+
+function eliminarClienteActual() {
+  var c = _clienteActual;
+  if (!c) return;
+  if (!confirm('¿Eliminar a ' + c.nombre + '?\n\nLos préstamos de este cliente se van a mantener pero van a quedar sin referencia.')) return;
+  if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
+  deleteDoc('clientes/' + c.id, function() {
+    var _r = msgExito('Cliente eliminado'); toast(_r.msg, _r.tipo);
+    _clientes = [];
+    navigate('clientes');
+  });
+}
+
+function guardarCliente(e) {
+  e.preventDefault();
+  var btn = document.querySelector('#form-cliente button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  var extra = {};
+  document.querySelectorAll('#custom-fields .custom-field-row').forEach(function(row) {
+    var name = row.querySelector('.cf-name').value.trim();
+    var val = row.querySelector('.cf-value').value.trim();
+    if (name) extra[name] = val;
+  });
+  var id = document.getElementById('cliente-id').value;
+  var data = {
+    nombre: document.getElementById('cliente-nombre').value.trim(),
+    telefono: document.getElementById('cliente-telefono').value.trim(),
+    dni: document.getElementById('cliente-dni').value.trim(),
+    direccion: document.getElementById('cliente-direccion').value.trim(),
+    tasa_preferencial: document.getElementById('cliente-tasa').value || '',
+    notas: document.getElementById('cliente-notas').value.trim(),
+    extra_campos: JSON.stringify(extra)
+  };
+  if (!data.nombre) { btn._enviando = false; toast('El nombre es obligatorio', 'error'); return; }
+  mostrarLoading(true);
+  var prom = id ? db.doc('clientes/' + id).update(data) : (data.fecha_registro = new Date().toISOString().split('T')[0], db.collection('clientes').add(data));
+  prom.then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
+    var _r = msgExito('Cliente guardado'); toast(_r.msg, _r.tipo);
+    _clientes = [];
+    navigate('clientes');
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
+  });
+}
+
+function verCliente(id) {
+  mostrarLoading(true);
+  getDocsParallel([db.doc('clientes/' + id).get(), db.collection('prestamos').where('cliente_id', '==', id).get()], function(results) {
+    mostrarLoading(false);
+    var c = results[0];
+    if (!c) { toast('Cliente no encontrado', 'error'); return; }
+    c.id = id;
+    _clienteActual = c;
+    var ps = results[1] || [];
+    var html = '<h2>' + esc(c.nombre) + '</h2>';
+    html += '<div class="phone">📱 ';
+    if (c.telefono) {
+      html += '<a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--text);text-decoration:none;font-weight:500;display:inline-flex;align-items:center;gap:6px">' + esc(c.telefono) + '<svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>';
+    } else {
+      html += 'Sin teléfono';
+    }
+    html += '</div>';
+    if (c.tasa_preferencial) html += '<div style="margin-top:6px;color:var(--warning);font-weight:500">⭐ Tasa preferencial: ' + c.tasa_preferencial + '%</div>';
+    if (c.notas) html += '<div style="margin-top:6px;color:var(--text2);font-size:13px">📝 ' + esc(c.notas) + '</div>';
+    var pendientes = ps.filter(function(p) { return p.estado === 'Pendiente'; });
+    var pagados = ps.filter(function(p) { return p.estado === 'Pagado'; });
+    html += '<div class="stats"><div><div class="num" style="color:var(--warning)">' + pendientes.length + '</div><div class="lbl">Pendientes</div></div>';
+    html += '<div><div class="num" style="color:var(--success)">' + pagados.length + '</div><div class="lbl">Pagados</div></div>';
+    html += '<div><div class="num" style="color:var(--primary)">' + ps.length + '</div><div class="lbl">Total</div></div></div>';
+    document.getElementById('cliente-detalle-info').innerHTML = html;
+    var extras = document.getElementById('cliente-detalle-extras');
+    var extraHtml = '<h3>📋 Datos del cliente</h3><div class="cliente-info-grid">';
+    if (c.dni) extraHtml += '<div class="cliente-info-item"><div class="lbl">DNI</div><div>' + esc(c.dni) + '</div></div>';
+    if (c.direccion) extraHtml += '<div class="cliente-info-item"><div class="lbl">Dirección</div><div>' + esc(c.direccion) + '</div></div>';
+    extraHtml += '</div>';
+    try {
+      var extra = JSON.parse(c.extra_campos || '{}');
+      var keys = Object.keys(extra);
+      if (keys.length) {
+        extraHtml += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:14px">';
+        keys.forEach(function(k) {
+          extraHtml += '<div style="display:flex;gap:8px;padding:3px 0"><span style="font-weight:500;min-width:100px">' + esc(k) + ':</span><span>' + esc(extra[k]) + '</span></div>';
+        });
+        extraHtml += '</div>';
+      }
+    } catch(e) {}
+    var hasExtra = c.dni || c.direccion || (function(){ try { return Object.keys(JSON.parse(c.extra_campos || '{}')).length; } catch(e) { return 0; } })();
+    if (hasExtra) {
+      extras.style.display = 'block';
+      extras.innerHTML = extraHtml;
+    } else {
+      extras.style.display = 'none';
+    }
+    if (!ps.length) {
+      document.getElementById('cliente-prestamos-list').innerHTML = '<div class="empty"><div class="icon">📭</div><p>Todavía no tiene préstamos</p></div>';
+    } else {
+      var h = '';
+      ps.forEach(function(p) {
+        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
+        var label = p.estado === 'Pagado' ? 'Pagado el ' + p.fecha_pago : 'Vence: ' + p.fecha_vence;
+        h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+      });
+      document.getElementById('cliente-prestamos-list').innerHTML = h;
+    }
+    navigate('cliente-detalle');
+  });
+}
+
+function irANuevoPrestamo() {
+  abrirNuevoPrestamo(_clienteActual ? _clienteActual.id : null);
+}
+
+function volverDeNuevoPrestamo() {
+  navigate('prestamos');
+}
+
+function filtrarPrestamos(f) {
+  _filtroPrestamos = f;
+  document.querySelectorAll('#prestamos-tabs .tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.filtro === f);
+  });
+  cargarPrestamos();
+}
+
+function actualizarBadgePrestamos() {
+  db.collection('prestamos').where('estado', '==', 'Pendiente').get().then(function(snap) {
+    var badge = document.getElementById('badge-prestamos');
+    var n = snap.docs.length;
+    if (n > 0) {
+      badge.textContent = n > 99 ? '99+' : n;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }).catch(function() {});
+}
+
+function cargarPrestamos() {
+  mostrarLoading(true);
+  getDocsParallel([db.collection('prestamos').get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var ps = results[0], clientes = results[1];
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    if (_filtroPrestamos === 'pendientes') ps = ps.filter(function(p) { return p.estado === 'Pendiente'; });
+    else if (_filtroPrestamos === 'pagados') ps = ps.filter(function(p) { return p.estado === 'Pagado'; });
+    if (!ps.length) {
+      document.getElementById('prestamos-list').innerHTML = '<div class="section"><div class="empty"><div class="icon">📭</div><p>No hay préstamos ' + _filtroPrestamos + '</p></div></div>';
+      return;
+    }
+    var html = '<div class="section">';
+    ps.forEach(function(p) {
+      var rightHtml;
+      if (p.estado === 'Pagado') {
+        rightHtml = '<span class="status pagado">Pagado</span>';
+      } else {
+        rightHtml = '<button class="btn btn-success btn-sm" onclick="event.stopPropagation();pagarPrestamo(\'' + p.id + '\')">✔ Pagado</button>';
+      }
+      html += '<div class="list-item" onclick="verPrestamo(\'' + p.id + '\')">';
+      html += '<div class="info"><div class="name">' + esc(cmap[p.cliente_id] || 'Cliente') + '</div>';
+      html += '<div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.dias_plazo + 'd · Vence: ' + p.fecha_vence + '</div></div>';
+      html += '<div class="right">' + rightHtml + '</div></div>';
+    });
+    html += '</div>';
+    document.getElementById('prestamos-list').innerHTML = html;
+  });
+}
+
+function verPrestamo(id) {
+  mostrarLoading(true);
+  getDocsParallel([db.doc('prestamos/' + id).get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var p = results[0];
+    if (!p) { toast('Préstamo no encontrado', 'error'); return; }
+    p.id = id;
+    var clientes = results[1] || [];
+    var c = clientes.find(function(x) { return x.id == p.cliente_id; });
+    var html = '<div class="resumen-card">';
+    html += '<div class="row" style="font-size:20px;font-weight:700;color:var(--primary)"><span>' + esc(c ? c.nombre : 'Cliente eliminado') + '</span><span>' + pesos(p.total) + '</span></div>';
+    html += '</div>';
+    html += '<div class="cliente-info-grid" style="margin-bottom:12px">';
+    html += '<div class="cliente-info-item"><div class="lbl">Monto prestado</div><div>' + pesos(p.monto) + '</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Tasa</div><div>' + p.tasa + '%</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Interés</div><div>' + pesos(p.total - p.monto) + '</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Plazo</div><div>' + p.dias_plazo + ' días</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Inicio</div><div>' + p.fecha_inicio + '</div></div>';
+    html += '<div class="cliente-info-item"><div class="lbl">Vence</div><div>' + p.fecha_vence + '</div></div>';
+    if (p.estado === 'Pagado') {
+      html += '<div class="cliente-info-item"><div class="lbl">Pagado el</div><div style="color:var(--success);font-weight:600">' + p.fecha_pago + '</div></div>';
+    }
+    html += '</div>';
+    var badge = p.estado === 'Pagado'
+      ? '<span class="status pagado" style="font-size:16px;padding:6px 16px">Pagado ✅</span>'
+      : '<span class="status pendiente" style="font-size:16px;padding:6px 16px">Pendiente ⏳</span>';
+    html += '<div style="text-align:center;margin-bottom:12px">' + badge + '</div>';
+    if (p.estado !== 'Pagado') {
+      html += '<div style="display:flex;gap:8px;margin-bottom:8px">';
+      html += '<button class="btn btn-primary btn-block" onclick="abrirEditarPrestamo(\'' + id + '\')">✏ Editar</button>';
+      html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Pagado</button>';
+      html += '</div>';
+    }
+    html += '<button class="btn btn-danger btn-block" onclick="eliminarPrestamo(\'' + id + '\')">🗑️ Eliminar préstamo</button>';
+    document.getElementById('prestamo-detalle-card').innerHTML = html;
+
+    var clienteSection = document.getElementById('prestamo-detalle-cliente');
+    if (c) {
+      clienteSection.style.display = 'block';
+      var ch = '<div class="cliente-info-grid">';
+      ch += '<div class="cliente-info-item"><div class="lbl">Nombre</div><div><a href="javascript:verCliente(\'' + c.id + '\')" style="color:var(--primary);font-weight:500">' + esc(c.nombre) + '</a></div></div>';
+      if (c.telefono) ch += '<div class="cliente-info-item"><div class="lbl">Teléfono</div><div><a href="' + whatsappUrl(c) + '" target="_blank" style="color:var(--success);font-weight:500;display:inline-flex;align-items:center;gap:4px">📱 ' + esc(c.telefono) + '<svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a></div></div>';
+      if (c.dni) ch += '<div class="cliente-info-item"><div class="lbl">DNI</div><div>' + esc(c.dni) + '</div></div>';
+      if (c.direccion) ch += '<div class="cliente-info-item"><div class="lbl">Dirección</div><div>' + esc(c.direccion) + '</div></div>';
+      ch += '</div>';
+      document.getElementById('prestamo-detalle-cliente-body').innerHTML = ch;
+    } else {
+      clienteSection.style.display = 'none';
+    }
+    navigate('prestamo-detalle');
+  });
+}
+
+function whatsappUrl(c, plantilla) {
+  if (!c.telefono) return '#';
+  plantilla = plantilla || (window._config || {}).mensaje_recordatorio || 'Hola {nombre}, te recordamos tu pr\u00e9stamo.';
+  var texto = plantilla.replace(/\{nombre\}/g, c.nombre || '').replace(/\{telefono\}/g, c.telefono || '');
+  var tel = String(c.telefono).replace(/\D/g, '');
+  if (!tel.startsWith('54')) tel = '54' + tel;
+  return 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
+}
+
+function pagarPrestamo(id) {
+  if (!confirm('¿Marcar este préstamo como pagado?')) return;
+  getDoc('prestamos/' + id, function(p) {
+    if (!p) { toast('Préstamo no encontrado', 'error'); return; }
+    if (p.estado === 'Pagado') { toast('Ya está pagado', 'error'); return; }
+    var hoy = new Date().toISOString().split('T')[0];
+    updateDoc('prestamos/' + id, { estado: 'Pagado', fecha_pago: hoy }, function() {
+      addDoc('pagos', { prestamo_id: id, monto: p.total, fecha: hoy }, function() {
+        actualizarBadgePrestamos();
+        toast(_offline ? 'Cambio guardado 📦 — se sincronizará cuando haya conexión' : 'Préstamo marcado como pagado ✅', _offline ? 'warning' : 'success');
+        cargarPrestamos();
+        if (document.getElementById('page-dashboard').classList.contains('active')) cargarDashboard();
+      });
+    });
+  });
+}
+
+function eliminarPrestamo(id) {
+  if (!confirm('¿Eliminar este préstamo?\n\nLos pagos asociados también se eliminarán.')) return;
+  if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
+  mostrarLoading(true);
+  getColFilter('pagos', 'prestamo_id', '==', id, function(pagos) {
+    var ops = [];
+    pagos.forEach(function(pg) { ops.push(db.doc('pagos/' + pg.id).delete()); });
+    ops.push(db.doc('prestamos/' + id).delete());
+    Promise.all(ops).then(function() {
+      mostrarLoading(false);
+      actualizarBadgePrestamos();
+      var _r = msgExito('Préstamo eliminado'); toast(_r.msg, _r.tipo);
+      if (_currentPage === 'reportes') cargarReporte();
+      else navigate('prestamos');
+    }).catch(function(err) {
+      mostrarLoading(false);
+      toast(err.message, 'error');
+    });
+  });
+}
+
+function abrirNuevoPrestamo(clienteId) {
+  navigate('nuevo-prestamo');
+  document.getElementById('prestamo-resumen').style.display = 'none';
+  document.getElementById('prestamo-cliente-info').style.display = 'none';
+  mostrarLoading(true);
+  getCol('clientes', function(clientes) {
+    mostrarLoading(false);
+    _clientes = clientes;
+    var sel = document.getElementById('prestamo-cliente');
+    sel.innerHTML = '<option value="">Seleccionar cliente...</option>';
+    clientes.forEach(function(c) {
+      var s = (clienteId && c.id == clienteId) ? 'selected' : '';
+      sel.innerHTML += '<option value="' + c.id + '" ' + s + '>' + esc(c.nombre) + (c.telefono ? ' - ' + esc(c.telefono) : '') + '</option>';
+    });
+    document.getElementById('prestamo-monto').value = '';
+    document.getElementById('prestamo-fecha').value = new Date().toISOString().split('T')[0];
+    if (clienteId) onCambioCliente();
+  });
+}
+
+function onCambioCliente() {
+  var id = document.getElementById('prestamo-cliente').value;
+  var info = document.getElementById('prestamo-cliente-info');
+  if (!id) { info.style.display = 'none'; calcularPrestamo(); return; }
+  getColFilter('prestamos', 'cliente_id', '==', id, function(ps) {
+    var pends = ps.filter(function(p) { return p.estado === 'Pendiente'; });
+    var totalPend = pends.reduce(function(s, p) { return s + p.total; }, 0);
+    var c = _clientes.find(function(x) { return x.id == id; });
+    if (c) {
+      info.style.display = 'block';
+      info.innerHTML = '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>' + esc(c.nombre) + '</span><span>' + ps.length + ' préstamos</span></div>' +
+        (totalPend > 0
+          ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--warning)"><span>🔴 Adeuda</span><span>' + pesos(totalPend) + '</span></div>'
+          : '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--success)"><span>✅ Al día</span><span></span></div>');
+    }
+    calcularPrestamo();
+  });
+}
+
+function calcularPrestamo() {
+  var monto = parseFloat(document.getElementById('prestamo-monto').value) || 0;
+  var plazoEl = document.querySelector('input[name="plazo"]:checked');
+  if (!plazoEl || !monto) {
+    document.getElementById('prestamo-resumen').style.display = 'none';
+    return;
+  }
+  var dias = parseInt(plazoEl.value);
+  var tasa = 0;
+  var clienteId = document.getElementById('prestamo-cliente').value;
+  if (clienteId) {
+    var c = _clientes.find(function(x) { return x.id == clienteId; });
+    if (c && c.tasa_preferencial) tasa = parseFloat(c.tasa_preferencial);
+  }
+  if (!tasa) tasa = tasaDeConfig(dias);
+  var total = monto + (monto * tasa / 100);
+  document.getElementById('res-monto').textContent = pesos(monto);
+  document.getElementById('res-tasa').textContent = tasa + '%';
+  document.getElementById('res-interes').textContent = pesos(total - monto);
+  document.getElementById('res-total').textContent = pesos(total);
+  document.getElementById('prestamo-resumen').style.display = 'block';
+}
+function tasaDeConfig(dias) {
+  var cfg = window._config || {};
+  if (dias === 7) return cfg.tasa_7d || 40;
+  if (dias === 15) return cfg.tasa_15d || 60;
+  return cfg.tasa_30d || 80;
+}
+
+function guardarPrestamo(e) {
+  e.preventDefault();
+  var btn = document.querySelector('#form-prestamo button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  var clienteId = document.getElementById('prestamo-cliente').value;
+  var monto = parseFloat(document.getElementById('prestamo-monto').value);
+  var plazoEl = document.querySelector('input[name="plazo"]:checked');
+  if (!clienteId) { btn._enviando = false; toast('Seleccioná un cliente', 'error'); return; }
+  if (!monto || monto < 1) { btn._enviando = false; toast('Ingresá un monto válido', 'error'); return; }
+  if (!plazoEl) { btn._enviando = false; toast('Seleccioná un plazo', 'error'); return; }
+  var dias = parseInt(plazoEl.value);
+  var c = _clientes.find(function(x) { return x.id == clienteId; });
+  var tasa;
+  if (c && c.tasa_preferencial) tasa = parseFloat(c.tasa_preferencial);
+  else tasa = tasaDeConfig(dias);
+  var total = monto + (monto * tasa / 100);
+  var fechaInicioStr = document.getElementById('prestamo-fecha').value || new Date().toISOString().split('T')[0];
+  var fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
+  var fechaVence = new Date(fechaInicio.getTime() + dias * 24 * 60 * 60 * 1000);
+  mostrarLoading(true);
+  db.collection('prestamos').add({
+    cliente_id: clienteId,
+    monto: monto,
+    tasa: tasa,
+    total: total,
+    dias_plazo: dias,
+    fecha_inicio: fechaInicioStr,
+    fecha_vence: fechaVence.toISOString().split('T')[0],
+    fecha_pago: '',
+    estado: 'Pendiente',
+    notas: ''
+  }).then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
+    actualizarBadgePrestamos();
+    toast('Préstamo registrado ✅', 'success');
+    navigate('prestamos');
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
+  });
+}
+
+function cargarReporte() {
+  mostrarLoading(true);
+  var mes = parseInt(document.getElementById('report-mes').value);
+  var anio = parseInt(document.getElementById('report-anio').value);
+  getDocsParallel([db.collection('prestamos').get(), db.collection('pagos').get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var ps = results[0], pgs = results[1], clientes = results[2];
+    var cmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    var prestado = 0, recuperado = 0, ganancias = 0, circulacion = 0;
+    var detalle = [];
+    ps.forEach(function(p) {
+      var fi = desglosarFecha(p.fecha_inicio);
+      if (fi.mes === mes && fi.anio === anio) {
+        prestado += p.monto;
+        detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, fecha: p.fecha_inicio });
+      }
+      if (p.estado === 'Pendiente') circulacion += p.total;
+    });
+    pgs.forEach(function(pg) {
+      var fp = desglosarFecha(pg.fecha);
+      if (fp.mes === mes && fp.anio === anio) {
+        recuperado += pg.monto;
+        var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
+        if (prestamo) ganancias += (prestamo.total - prestamo.monto);
+      }
+    });
+    document.getElementById('rep-prestado').textContent = pesos(prestado);
+    document.getElementById('rep-recuperado').textContent = pesos(recuperado);
+    document.getElementById('rep-circulacion').textContent = pesos(circulacion);
+    document.getElementById('rep-ganancias').textContent = pesos(ganancias);
+    var html = '';
+    if (detalle.length) {
+      detalle.forEach(function(p) {
+        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right" style="display:flex;align-items:center;gap:6px"><span class="status ' + cls + '">' + p.estado + '</span><button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;color:var(--danger)" onclick="eliminarPrestamo(\'' + p.id + '\');event.stopPropagation()" title="Eliminar">🗑️</button></div></div>';
+      });
+    } else {
+      html = '<div class="empty"><div class="icon">📭</div><p>Sin préstamos en este período</p></div>';
+    }
+    document.getElementById('report-detalle').innerHTML = html;
+  });
+}
+
+function cargarConfig() {
+  mostrarLoading(true);
+  getDoc('config/settings', function(cfg) {
+    mostrarLoading(false);
+    window._config = cfg || {};
+    document.getElementById('cfg-tasa-7d').value = (cfg && cfg.tasa_7d) || 40;
+    document.getElementById('cfg-tasa-15d').value = (cfg && cfg.tasa_15d) || 60;
+    document.getElementById('cfg-tasa-30d').value = (cfg && cfg.tasa_30d) || 80;
+    document.getElementById('cfg-msg-recordatorio').value = (cfg && cfg.mensaje_recordatorio) || '';
+    document.getElementById('cfg-msg-vencido').value = (cfg && cfg.mensaje_vencido) || '';
+  });
+}
+
+function guardarTasas(e) {
+  e.preventDefault();
+  var btn = document.querySelector('#form-tasas button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  mostrarLoading(true);
+  db.doc('config/settings').set({
+    tasa_7d: parseFloat(document.getElementById('cfg-tasa-7d').value),
+    tasa_15d: parseFloat(document.getElementById('cfg-tasa-15d').value),
+    tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value)
+  }, { merge: true }).then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
+    var _r = msgExito('Tasas guardadas'); toast(_r.msg, _r.tipo);
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
+  });
+}
+
+function guardarMensajes(e) {
+  e.preventDefault();
+  var btn = document.querySelector('#form-mensajes button[type="submit"]');
+  if (btn._enviando) return;
+  btn._enviando = true;
+  mostrarLoading(true);
+  db.doc('config/settings').set({
+    mensaje_recordatorio: document.getElementById('cfg-msg-recordatorio').value.trim(),
+    mensaje_vencido: document.getElementById('cfg-msg-vencido').value.trim()
+  }, { merge: true }).then(function() {
+    btn._enviando = false;
+    mostrarLoading(false);
+    var _r = msgExito('Mensajes guardados'); toast(_r.msg, _r.tipo);
+  }).catch(function(err) {
+    btn._enviando = false;
+    mostrarLoading(false);
+    toast(err.message, 'error');
+  });
+}
+
+/* ===== Simulador de préstamo ===== */
+function calcularSimulacion() {
+  var monto = parseFloat(document.getElementById('sim-monto').value) || 0;
+  var plazoEl = document.querySelector('input[name="sim-plazo"]:checked');
+  if (!plazoEl || !monto) {
+    document.getElementById('sim-resultado').style.display = 'none';
+    return;
+  }
+  var dias = parseInt(plazoEl.value);
+  var cfg = window._config || {};
+  var tasa = dias === 7 ? (cfg.tasa_7d || 40) : dias === 15 ? (cfg.tasa_15d || 60) : (cfg.tasa_30d || 80);
+  var total = monto + (monto * tasa / 100);
+  document.getElementById('sim-r-monto').textContent = pesos(monto);
+  document.getElementById('sim-r-tasa').textContent = tasa + '%';
+  document.getElementById('sim-r-interes').textContent = pesos(total - monto);
+  document.getElementById('sim-r-total').textContent = pesos(total);
+  var fmt = function(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+  var texto = '\ud83d\udccb *Condiciones del pr\u00e9stamo*\n\ud83d\udcb0 Monto: $' + fmt(monto) + '\n\ud83d\udcc6 Plazo: ' + dias + ' d\u00edas\n\ud83d\udcb5 Total a devolver: $' + fmt(total);
+  document.getElementById('sim-texto').value = texto;
+  document.getElementById('sim-resultado').style.display = 'block';
+}
+
+function copiarSimulacion() {
+  var ta = document.getElementById('sim-texto');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(ta.value).then(function() {
+    toast('Copiado al portapapeles ✅', 'success');
+  }).catch(function() {
+    document.execCommand('copy');
+    toast('Copiado al portapapeles ✅', 'success');
+  });
+}
+
+function addCustomField() {
+  var container = document.getElementById('custom-fields');
+  var row = document.createElement('div');
+  row.className = 'custom-field-row';
+  row.style.cssText = 'display:flex;gap:8px;margin-bottom:6px';
+  row.innerHTML =
+    '<input type="text" class="cf-name" placeholder="Nombre del campo" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">' +
+    '<input type="text" class="cf-value" placeholder="Valor" style="flex:1;padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);outline:none">' +
+    '<button type="button" onclick="removeCustomField(this)" style="background:none;border:none;color:var(--danger);font-size:20px;cursor:pointer;padding:4px;min-width:40px">✕</button>';
+  container.appendChild(row);
+}
+
+function removeCustomField(btn) {
+  var row = btn.parentNode;
+  row.parentNode.removeChild(row);
+}
+
+  /* ===== Instrucciones de instalación según plataforma ===== */
+  function detectarPlataforma() {
+    var ua = navigator.userAgent;
+    if (/android/i.test(ua)) return 'android';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+    return 'desktop';
+  }
+
+  window._plataforma = detectarPlataforma();
+
+  function textoInstalar() {
+    var plat = window._plataforma;
+    if (plat === 'android') {
+      return 'En Android:\n1. Tocá el menú ⋮ (tres puntos) del navegador\n2. Elegí "Agregar a pantalla de inicio"\n3. Tocá "Instalar" o "Agregar"\n\n📱 La app se abrirá como una app nativa.';
+    }
+    if (plat === 'ios') {
+      return 'En iPhone/iPad:\n1. Tocá el icono 📤 (Compartir) en Safari\n2. Desplazate hacia abajo y elegí "Agregar a pantalla de inicio"\n3. Tocá "Agregar" (arriba a la derecha)\n\n📱 La app se abrirá como una app nativa.';
+    }
+    return 'En PC:\n1. Abrí Chrome, Edge o Brave\n2. En la barra de direcciones, fijate si aparece un icono 🖥️ (Instalar)\n3. Hacé clic en "Instalar"\n\n💻 Si no aparece, simplemente agregá esta página a favoritos.';
+  }
+
+  function mostrarInstalar() {
+    var div = document.getElementById('modal-instalar');
+    var p = document.getElementById('modal-instalar-texto');
+    p.textContent = textoInstalar();
+    div.style.display = 'flex';
+  }
+
+  function cerrarInstalar() {
+    document.getElementById('modal-instalar').style.display = 'none';
+  }
+
+  /* ===== Editar préstamo ===== */
+  var _editPrestamoId = null;
+
+  function abrirEditarPrestamo(id) {
+    _editPrestamoId = id;
+    mostrarLoading(true);
+    db.doc('prestamos/' + id).get().then(function(doc) {
+      mostrarLoading(false);
+      if (!doc.exists) { toast('Préstamo no encontrado', 'error'); return; }
+      var p = doc.data();
+      document.getElementById('edit-prestamo-monto').value = p.monto;
+      document.getElementById('edit-prestamo-tasa').value = p.tasa;
+      document.getElementById('edit-prestamo-dias').value = p.dias_plazo;
+      document.getElementById('edit-prestamo-inicio').value = p.fecha_inicio;
+      document.getElementById('edit-prestamo-vence').value = p.fecha_vence;
+      document.getElementById('modal-editar-prestamo').style.display = 'flex';
+    }).catch(function(err) {
+      mostrarLoading(false);
+      toast(err.message, 'error');
+    });
+  }
+
+  function cerrarEditarPrestamo() {
+    document.getElementById('modal-editar-prestamo').style.display = 'none';
+    _editPrestamoId = null;
+  }
+
+  function guardarEditarPrestamo(e) {
+    e.preventDefault();
+    var btn = document.querySelector('#form-editar-prestamo button[type="submit"]');
+    if (btn._enviando) return;
+    btn._enviando = true;
+    var id = _editPrestamoId;
+    if (!id) { btn._enviando = false; return; }
+    var monto = parseFloat(document.getElementById('edit-prestamo-monto').value);
+    var tasa = parseFloat(document.getElementById('edit-prestamo-tasa').value);
+    var dias = parseInt(document.getElementById('edit-prestamo-dias').value);
+    var inicio = document.getElementById('edit-prestamo-inicio').value;
+    var vence = document.getElementById('edit-prestamo-vence').value;
+    inicio = normalizarFecha(inicio);
+    vence = normalizarFecha(vence);
+    if (!monto || monto < 1) { btn._enviando = false; toast('Monto inválido', 'error'); return; }
+    if (tasa < 0) { btn._enviando = false; toast('Tasa inválida', 'error'); return; }
+    if (!dias || dias < 1) { btn._enviando = false; toast('Plazo inválido', 'error'); return; }
+    if (!inicio || !vence) { btn._enviando = false; toast('Fechas inválidas (usá AAAA-MM-DD)', 'error'); return; }
+    var total = monto + (monto * tasa / 100);
+    mostrarLoading(true);
+    db.collection('prestamos').doc(id).update({
+      monto: monto,
+      tasa: tasa,
+      total: total,
+      dias_plazo: dias,
+      fecha_inicio: inicio,
+      fecha_vence: vence
+    }).then(function() {
+      btn._enviando = false;
+      mostrarLoading(false);
+      cerrarEditarPrestamo();
+      toast(_offline ? 'Cambio guardado 📦 — se sincronizará cuando haya conexión' : 'Préstamo actualizado ✅', _offline ? 'warning' : 'success');
+      verPrestamo(id);
+    }).catch(function(err) {
+      btn._enviando = false;
+      mostrarLoading(false);
+      toast(err.message, 'error');
+    });
+  }
+
+  function toggleDarkMode() {
+  var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  document.getElementById('btn-darkmode').textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+function initTheme() {
+  var saved = localStorage.getItem('theme');
+  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var theme = saved || (prefersDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('btn-darkmode').textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+function init() {
+  initTheme();
+  var hoy = new Date();
+  document.getElementById('report-mes').value = hoy.getMonth();
+  var selAnio = document.getElementById('report-anio');
+  for (var a = hoy.getFullYear() - 3; a <= hoy.getFullYear() + 1; a++) {
+    var o = document.createElement('option');
+    o.value = a; o.textContent = a;
+    if (a === hoy.getFullYear()) o.selected = true;
+    selAnio.appendChild(o);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+  </script>
+<div class="modal-overlay" id="modal-editar-prestamo" onclick="if(event.target===this)cerrarEditarPrestamo()">
+  <div class="modal-box">
+    <h3>✏ Editar Préstamo</h3>
+    <form id="form-editar-prestamo" onsubmit="return guardarEditarPrestamo(event)">
+      <div class="form-group">
+        <label>Monto $</label>
+        <input type="number" id="edit-prestamo-monto" inputmode="decimal" step="0.01" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Tasa (%)</label>
+        <input type="number" id="edit-prestamo-tasa" inputmode="decimal" step="0.1" min="0" required>
+      </div>
+      <div class="form-group">
+        <label>Días plazo</label>
+        <input type="number" id="edit-prestamo-dias" inputmode="numeric" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Fecha inicio (AAAA-MM-DD)</label>
+        <input type="text" id="edit-prestamo-inicio" inputmode="numeric" placeholder="Ej: 2026-06-15" required>
+      </div>
+      <div class="form-group">
+        <label>Fecha vencimiento (AAAA-MM-DD)</label>
+        <input type="text" id="edit-prestamo-vence" inputmode="numeric" placeholder="Ej: 2026-07-15" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Guardar Cambios</button>
+      <button type="button" class="btn btn-block" style="background:var(--surface);color:var(--text);border:1px solid var(--border);margin-top:6px" onclick="cerrarEditarPrestamo()">Cancelar</button>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-instalar" onclick="if(event.target===this)cerrarInstalar()">
+  <div class="modal-box">
+    <h3>📲 Instalar la app</h3>
+    <p id="modal-instalar-texto"></p>
+    <button class="btn-cerrar" onclick="cerrarInstalar()">Entendido</button>
+  </div>
+</div>
+</body>
+</html>
