@@ -1237,17 +1237,19 @@ function calcularPrestamo() {
     var c = _clientes.find(function(x) { return x.id == clienteId; });
     if (c && c.tasa_preferencial) tasa = parseFloat(c.tasa_preferencial);
   }
-  if (!tasa) {
-    if (dias === 7) tasa = 40;
-    else if (dias === 15) tasa = 60;
-    else tasa = 80;
-  }
+  if (!tasa) tasa = tasaDeConfig(dias);
   var total = monto + (monto * tasa / 100);
   document.getElementById('res-monto').textContent = pesos(monto);
   document.getElementById('res-tasa').textContent = tasa + '%';
   document.getElementById('res-interes').textContent = pesos(total - monto);
   document.getElementById('res-total').textContent = pesos(total);
   document.getElementById('prestamo-resumen').style.display = 'block';
+}
+function tasaDeConfig(dias) {
+  var cfg = window._config || {};
+  if (dias === 7) return cfg.tasa_7d || 40;
+  if (dias === 15) return cfg.tasa_15d || 60;
+  return cfg.tasa_30d || 80;
 }
 
 function guardarPrestamo(e) {
@@ -1265,9 +1267,7 @@ function guardarPrestamo(e) {
   var c = _clientes.find(function(x) { return x.id == clienteId; });
   var tasa;
   if (c && c.tasa_preferencial) tasa = parseFloat(c.tasa_preferencial);
-  else if (dias === 7) tasa = 40;
-  else if (dias === 15) tasa = 60;
-  else tasa = 80;
+  else tasa = tasaDeConfig(dias);
   var total = monto + (monto * tasa / 100);
   var fechaInicioStr = document.getElementById('prestamo-fecha').value || new Date().toISOString().split('T')[0];
   var fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
@@ -1364,7 +1364,7 @@ function guardarTasas(e) {
     tasa_7d: parseFloat(document.getElementById('cfg-tasa-7d').value),
     tasa_15d: parseFloat(document.getElementById('cfg-tasa-15d').value),
     tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value)
-  }).then(function() {
+  }, { merge: true }).then(function() {
     btn._enviando = false;
     mostrarLoading(false);
     var _r = msgExito('Tasas guardadas'); toast(_r.msg, _r.tipo);
@@ -1387,7 +1387,7 @@ function guardarMensajes(e) {
     tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value || 80),
     mensaje_recordatorio: document.getElementById('cfg-msg-recordatorio').value.trim(),
     mensaje_vencido: document.getElementById('cfg-msg-vencido').value.trim()
-  }).then(function() {
+  }, { merge: true }).then(function() {
     btn._enviando = false;
     mostrarLoading(false);
     var _r = msgExito('Mensajes guardados'); toast(_r.msg, _r.tipo);
