@@ -378,6 +378,49 @@
         </div>
       </div>
 
+      <div id="page-simular" class="page">
+        <div class="back-row"><button onclick="navigate('prestamos')">←</button><span style="font-weight:600;font-size:18px">🧮 Simular Préstamo</span></div>
+        <div class="section">
+          <div class="form-group">
+            <label>Monto a simular ($) *</label>
+            <input type="number" id="sim-monto" inputmode="numeric" step="1" min="1" placeholder="Ej: 1000" oninput="calcularSimulacion()">
+          </div>
+          <div class="form-group">
+            <label>Plazo</label>
+            <div class="plazo-grid">
+              <label class="plazo-opt">
+                <input type="radio" name="sim-plazo" value="7" onchange="calcularSimulacion()">
+                <span><b>7 días</b></span>
+              </label>
+              <label class="plazo-opt">
+                <input type="radio" name="sim-plazo" value="15" checked onchange="calcularSimulacion()">
+                <span><b>15 días</b></span>
+              </label>
+              <label class="plazo-opt">
+                <input type="radio" name="sim-plazo" value="30" onchange="calcularSimulacion()">
+                <span><b>30 días</b></span>
+              </label>
+            </div>
+          </div>
+          <div id="sim-resultado" style="display:none">
+            <div class="resumen-card" style="margin-bottom:12px">
+              <div class="row"><span>Monto</span><span id="sim-r-monto">$ 0</span></div>
+              <div class="row"><span>Tasa</span><span id="sim-r-tasa">0%</span></div>
+              <div class="row"><span>Interés</span><span id="sim-r-interes">$ 0</span></div>
+              <div class="row total"><span>Total a pagar</span><span id="sim-r-total">$ 0</span></div>
+            </div>
+            <div class="form-group">
+              <label>📋 Texto para enviar</label>
+              <textarea id="sim-texto" rows="5" style="font-size:14px;width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-family:monospace" readonly></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-block" onclick="copiarSimulacion()">📋 Copiar</button>
+              <button class="btn btn-success btn-block" onclick="enviarSimulacion()">📱 WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="page-config" class="page">
         <div class="config-section">
           <h3>💰 Tasas de interés</h3>
@@ -399,11 +442,15 @@
         </div>
         <div class="config-section">
           <h3>💬 Mensajes de WhatsApp</h3>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Usá <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{nombre}</code> <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{telefono}</code> como marcadores</p>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Usá <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{nombre}</code> <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{telefono}</code> <code style="background:var(--bg);padding:2px 6px;border-radius:4px">{fecha_vence}</code> como marcadores</p>
           <form id="form-mensajes" onsubmit="return guardarMensajes(event)">
             <div class="form-group">
               <label>📲 Mensaje de recordatorio</label>
               <textarea id="cfg-msg-recordatorio" rows="3" style="font-size:14px" placeholder="Ej: Hola {nombre}, te recordamos tu préstamo."></textarea>
+            </div>
+            <div class="form-group">
+              <label>🔴 Mensaje para vencidos</label>
+              <textarea id="cfg-msg-vencido" rows="3" style="font-size:14px" placeholder="Ej: Hola {nombre}, el préstamo venció el {fecha_vence}, necesito que te pongas al día."></textarea>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Guardar Mensajes</button>
           </form>
@@ -420,6 +467,7 @@
       <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span>Inicio</button>
       <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">👥</span>Clientes</button>
       <button class="nav-item" data-page="prestamos" onclick="navigate('prestamos')"><span class="icon" style="position:relative">💰<span id="badge-prestamos" style="display:none;position:absolute;top:-6px;right:-12px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:99px;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 1px 3px rgba(0,0,0,.3)">0</span></span>Préstamos</button>
+      <button class="nav-item" data-page="simular" onclick="navigate('simular')"><span class="icon">🧮</span>Simular</button>
       <button class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">📈</span>Reportes</button>
       <button class="nav-item" data-page="config" onclick="navigate('config')"><span class="icon">⚙️</span>Config</button>
     </nav>
@@ -646,10 +694,10 @@ function navigate(page) {
   var titles = {
     dashboard: 'Pr\u00e9stamos Leo', clientes: 'Clientes', 'cliente-form': 'Cliente',
     'cliente-detalle': 'Detalle', prestamos: 'Pr\u00e9stamos', 'prestamo-detalle': 'Detalle',
-    'nuevo-prestamo': 'Nuevo Pr\u00e9stamo', reportes: 'Reportes', config: 'Config'
+    'nuevo-prestamo': 'Nuevo Pr\u00e9stamo', 'simular': 'Simular', reportes: 'Reportes', config: 'Config'
   };
   document.getElementById('header-title').textContent = titles[page] || 'Mis Pr\u00e9stamos';
-  var showBack = page === 'cliente-form' || page === 'cliente-detalle' || page === 'nuevo-prestamo' || page === 'prestamo-detalle';
+  var showBack = page === 'cliente-form' || page === 'cliente-detalle' || page === 'nuevo-prestamo' || page === 'prestamo-detalle' || page === 'simular';
   document.getElementById('btn-back').style.display = showBack ? '' : 'none';
   document.querySelectorAll('.nav-item').forEach(function(n) {
     n.classList.toggle('active', n.dataset.page === page);
@@ -666,15 +714,15 @@ function navigate(page) {
 
 function goBack() {
   if (_currentPage === 'cliente-form' || _currentPage === 'cliente-detalle') navigate('clientes');
-  else if (_currentPage === 'nuevo-prestamo' || _currentPage === 'prestamo-detalle') navigate('prestamos');
+  else if (_currentPage === 'nuevo-prestamo' || _currentPage === 'prestamo-detalle' || _currentPage === 'simular') navigate('prestamos');
   else navigate('dashboard');
 }
 
 function cargarAlertas() {
   getDocsParallel([db.collection('prestamos').get(), db.collection('clientes').get()], function(results) {
     var ps = results[0], clientes = results[1];
-    var cmap = {};
-    clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
+    var cmap = {}, telmap = {};
+    clientes.forEach(function(c) { cmap[c.id] = c.nombre; telmap[c.id] = c.telefono || ''; });
     var ahora = new Date();
     var hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     var vencidos = [], venceHoy = [], proximos = [];
@@ -692,7 +740,22 @@ function cargarAlertas() {
     if (vencidos.length) {
       html += '<div class="alerta alerta-danger"><span class="icon">🔴</span><div class="body"><strong>' + vencidos.length + ' vencido' + (vencidos.length > 1 ? 's' : '') + '</strong>';
       vencidos.forEach(function(v) {
-        html += '<div class="sub">' + esc(cmap[v.cliente_id] || '?') + ' · ' + pesos(v.total) + ' · venció hace ' + Math.abs(v.dias) + ' día' + (Math.abs(v.dias) > 1 ? 's' : '') + '</div>';
+        var nom = cmap[v.cliente_id] || '?';
+        var tel = telmap[v.cliente_id] || '';
+        var fechaFormateada = v.fecha_vence.split('-').reverse().join('/');
+        var plantilla = (window._config || {}).mensaje_vencido || 'Hola {nombre}, te recuerdo que el plazo de pago venci\u00f3 el d\u00eda {fecha_vence} por favor necesito que te pongas al d\u00eda.';
+        var texto = plantilla.replace(/\{nombre\}/g, nom).replace(/\{fecha_vence\}/g, fechaFormateada);
+        var waLink = '#';
+        if (tel) {
+          var telNum = String(tel).replace(/\D/g, '');
+          if (!telNum.startsWith('54')) telNum = '54' + telNum;
+          waLink = 'https://wa.me/' + telNum + '?text=' + encodeURIComponent(texto);
+        }
+        html += '<div class="sub" style="display:flex;justify-content:space-between;align-items:center">';
+        html += '<span>' + esc(nom) + ' · ' + pesos(v.total) + ' · venci\u00f3 hace ' + Math.abs(v.dias) + ' d\u00eda' + (Math.abs(v.dias) > 1 ? 's' : '') + '</span>';
+        if (tel) html += '<a href="' + waLink + '" target="_blank" style="color:#25D366;font-size:20px;text-decoration:none;flex-shrink:0">📱</a>';
+        html += '</div>';
+
       });
       html += '</div></div>';
     }
@@ -1290,6 +1353,7 @@ function cargarConfig() {
     document.getElementById('cfg-tasa-15d').value = (cfg && cfg.tasa_15d) || 60;
     document.getElementById('cfg-tasa-30d').value = (cfg && cfg.tasa_30d) || 80;
     document.getElementById('cfg-msg-recordatorio').value = (cfg && cfg.mensaje_recordatorio) || '';
+    document.getElementById('cfg-msg-vencido').value = (cfg && cfg.mensaje_vencido) || '';
   });
 }
 
@@ -1324,7 +1388,8 @@ function guardarMensajes(e) {
     tasa_7d: parseFloat(document.getElementById('cfg-tasa-7d').value || 40),
     tasa_15d: parseFloat(document.getElementById('cfg-tasa-15d').value || 60),
     tasa_30d: parseFloat(document.getElementById('cfg-tasa-30d').value || 80),
-    mensaje_recordatorio: document.getElementById('cfg-msg-recordatorio').value.trim()
+    mensaje_recordatorio: document.getElementById('cfg-msg-recordatorio').value.trim(),
+    mensaje_vencido: document.getElementById('cfg-msg-vencido').value.trim()
   }).then(function() {
     btn._enviando = false;
     mostrarLoading(false);
@@ -1334,6 +1399,48 @@ function guardarMensajes(e) {
     mostrarLoading(false);
     toast(err.message, 'error');
   });
+}
+
+/* ===== Simulador de préstamo ===== */
+function calcularSimulacion() {
+  var monto = parseFloat(document.getElementById('sim-monto').value) || 0;
+  var plazoEl = document.querySelector('input[name="sim-plazo"]:checked');
+  if (!plazoEl || !monto) {
+    document.getElementById('sim-resultado').style.display = 'none';
+    return;
+  }
+  var dias = parseInt(plazoEl.value);
+  var tasa = dias === 7 ? 40 : dias === 15 ? 60 : 80;
+  var total = monto + (monto * tasa / 100);
+  document.getElementById('sim-r-monto').textContent = pesos(monto);
+  document.getElementById('sim-r-tasa').textContent = tasa + '%';
+  document.getElementById('sim-r-interes').textContent = pesos(total - monto);
+  document.getElementById('sim-r-total').textContent = pesos(total);
+  var texto = '\ud83d\udccb *Condiciones del pr\u00e9stamo*\n\ud83d\udcb0 Monto: $' + formatearMoneda(monto) + '\n\ud83d\udcc6 Plazo: ' + dias + ' d\u00edas\n\ud83d\udcca Tasa: ' + tasa + '%\n\ud83d\udcb2 Inter\u00e9s: $' + formatearMoneda(total - monto) + '\n\ud83d\udcb5 Total a pagar: $' + formatearMoneda(total);
+  document.getElementById('sim-texto').value = texto;
+  document.getElementById('sim-resultado').style.display = 'block';
+}
+
+function copiarSimulacion() {
+  var ta = document.getElementById('sim-texto');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(ta.value).then(function() {
+    toast('Copiado al portapapeles ✅', 'success');
+  }).catch(function() {
+    document.execCommand('copy');
+    toast('Copiado al portapapeles ✅', 'success');
+  });
+}
+
+function enviarSimulacion() {
+  var texto = document.getElementById('sim-texto').value;
+  var waLink = 'https://wa.me/?text=' + encodeURIComponent(texto);
+  window.open(waLink, '_blank');
+}
+
+function formatearMoneda(n) {
+  return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function addCustomField() {
