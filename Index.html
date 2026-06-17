@@ -849,7 +849,7 @@ function cargarDashboard() {
     ps.forEach(function(p) {
       var fi = desglosarFecha(p.fecha_inicio);
       if (fi.mes === mes && fi.anio === anio) prestadoMes += p.monto;
-      if (p.estado === 'Pendiente') circulacion += p.total;
+      if (p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable') circulacion += p.total;
     });
     pgs.forEach(function(pg) {
       var fp = desglosarFecha(pg.fecha);
@@ -1435,7 +1435,7 @@ function cargarReporte() {
         prestado += p.monto;
         detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, estado_cobro: p.estado_cobro || '', fecha: p.fecha_inicio });
       }
-      if (p.estado === 'Pendiente') circulacion += p.total;
+      if (p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable') circulacion += p.total;
     });
     pgs.forEach(function(pg) {
       var fp = desglosarFecha(pg.fecha);
