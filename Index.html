@@ -1414,7 +1414,7 @@ function calcularSimulacion() {
   document.getElementById('sim-r-interes').textContent = pesos(total - monto);
   document.getElementById('sim-r-total').textContent = pesos(total);
   var fmt = function(x) { return Math.round(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
-  var texto = '\ud83d\udccb *Condiciones del pr\u00e9stamo*\n\ud83d\udcb0 Monto: $' + fmt(monto) + '\n\ud83d\udcc6 Plazo: ' + dias + ' d\u00edas\n\ud83d\udcca Tasa: ' + tasa + '%\n\ud83d\udcb5 Total a devolver: $' + fmt(total);
+  var texto = '\ud83d\udccb *Condiciones del pr\u00e9stamo*\n\ud83d\udcb0 Monto: $' + fmt(monto) + '\n\ud83d\udcc6 Plazo: ' + dias + ' d\u00edas\n\ud83d\udcb5 Total a devolver: $' + fmt(total);
   document.getElementById('sim-texto').value = texto;
   document.getElementById('sim-resultado').style.display = 'block';
 }
