@@ -466,6 +466,12 @@ function normalizarFecha(str) {
   return str;
 }
 
+function desglosarFecha(str) {
+  var p = (str || '').split('-');
+  if (p.length === 3) return { anio: parseInt(p[0]), mes: parseInt(p[1]) - 1, dia: parseInt(p[2]) };
+  return { anio: 0, mes: -1, dia: 0 };
+}
+
 function msgExito(texto) { return { msg: _offline ? '📦 ' + texto + ' — se sincronizará cuando haya conexión' : texto + ' ✅', tipo: _offline ? 'warning' : 'success' }; }
 
 function recargarPaginaActual() {
@@ -650,13 +656,13 @@ function cargarAlertas() {
     var ps = results[0], clientes = results[1];
     var cmap = {};
     clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-    var hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    var ahora = new Date();
+    var hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     var vencidos = [], venceHoy = [], proximos = [];
     ps.forEach(function(p) {
       if (p.estado !== 'Pendiente') return;
-      var vence = new Date(p.fecha_vence);
-      vence.setHours(0, 0, 0, 0);
+      var partes = p.fecha_vence.split('-');
+      var vence = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
       var diff = Math.ceil((vence - hoy) / (1000 * 60 * 60 * 24));
       var info = { cliente_id: p.cliente_id, total: p.total, fecha_vence: p.fecha_vence, dias: diff };
       if (diff < 0) vencidos.push(info);
@@ -701,13 +707,13 @@ function cargarDashboard() {
     var prestadoMes = 0, recuperadoMes = 0, circulacion = 0, gananciasMes = 0;
     var pagosProcessed = [];
     ps.forEach(function(p) {
-      var fi = new Date(p.fecha_inicio);
-      if (fi.getMonth() === mes && fi.getFullYear() === anio) prestadoMes += p.monto;
+      var fi = desglosarFecha(p.fecha_inicio);
+      if (fi.mes === mes && fi.anio === anio) prestadoMes += p.monto;
       if (p.estado === 'Pendiente') circulacion += p.total;
     });
     pgs.forEach(function(pg) {
-      var fp = new Date(pg.fecha);
-      if (fp.getMonth() === mes && fp.getFullYear() === anio) {
+      var fp = desglosarFecha(pg.fecha);
+      if (fp.mes === mes && fp.anio === anio) {
         recuperadoMes += pg.monto;
         var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
         if (prestamo) {
@@ -1224,16 +1230,16 @@ function cargarReporte() {
     var prestado = 0, recuperado = 0, ganancias = 0, circulacion = 0;
     var detalle = [];
     ps.forEach(function(p) {
-      var fi = new Date(p.fecha_inicio);
-      if (fi.getMonth() === mes && fi.getFullYear() === anio) {
+      var fi = desglosarFecha(p.fecha_inicio);
+      if (fi.mes === mes && fi.anio === anio) {
         prestado += p.monto;
         detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, fecha: p.fecha_inicio });
       }
       if (p.estado === 'Pendiente') circulacion += p.total;
     });
     pgs.forEach(function(pg) {
-      var fp = new Date(pg.fecha);
-      if (fp.getMonth() === mes && fp.getFullYear() === anio) {
+      var fp = desglosarFecha(pg.fecha);
+      if (fp.mes === mes && fp.anio === anio) {
         recuperado += pg.monto;
         var prestamo = ps.find(function(pr) { return pr.id == pg.prestamo_id; });
         if (prestamo) ganancias += (prestamo.total - prestamo.monto);
