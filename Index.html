@@ -126,7 +126,7 @@
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
     .form-group input, .form-group select, .form-group textarea { width: 100%; max-width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; transition: border .2s; background: var(--surface); color: var(--text); }
-    .form-group input[type="date"] { min-width: 0; width: 100%; box-sizing: border-box; }
+    .form-group input[type="date"] { min-width: 0; width: 100%; max-width: 100%; }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
     .form-group textarea { resize: vertical; min-height: 60px; }
     .plazo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
@@ -736,7 +736,7 @@ function goBack() {
   else navigate('dashboard');
 }
 
-function cargarAlertas() {
+function cargarAlertas(cb) {
   getDocsParallel([db.collection('prestamos').get(), db.collection('clientes').get()], function(results) {
     var ps = results[0], clientes = results[1];
     var cmap = {}, telmap = {};
@@ -817,6 +817,7 @@ function cargarAlertas() {
       html += '</div></div>';
     }
     document.getElementById('alertas-section').innerHTML = html || '';
+    if (cb) cb();
     if (vencidos.length && 'Notification' in window && Notification.permission === 'granted') {
       var sinNotificar = vencidos.filter(function(v) { return !_notifiedIds[v.id]; });
       if (sinNotificar.length && navigator.serviceWorker.controller) {
@@ -1232,9 +1233,23 @@ function whatsappUrl(c, plantilla) {
 }
 
 function actualizarEstadoCobro(id, estado) {
-  updateDoc('prestamos/' + id, { estado_cobro: estado }, function() {
-    toast(estado === 'incobrable' ? 'Marcado como incobrable' : 'Estado actualizado a ' + estado, 'success');
-    if (_currentPage === 'dashboard') cargarDashboard();
+  db.doc('prestamos/' + id).set({ estado_cobro: estado }, { merge: true }).then(function() {
+    toast(estado === 'incobrable' ? 'Marcado como incobrable' : 'Estado actualizado', 'success');
+    if (_currentPage === 'dashboard') {
+      cargarAlertas(function() {
+        var ven = document.querySelector('.alerta-danger');
+        if (ven) {
+          var body = ven.querySelector('.accordion-body');
+          if (body && body.style.display === 'none') {
+            body.style.display = 'block';
+            var ch = ven.querySelector('.acordeon-chevron');
+            if (ch) ch.style.transform = 'rotate(180deg)';
+          }
+        }
+      });
+    }
+  }).catch(function(err) {
+    toast('Error: ' + err.message, 'error');
   });
 }
 
