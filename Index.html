@@ -220,6 +220,7 @@
           <div class="stat-card"><div class="label">Recuperado (Mes)</div><div class="value green" id="dash-recuperado">$ 0</div></div>
           <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="dash-circulacion">$ 0</div></div>
           <div class="stat-card"><div class="label">Ganancias (Mes)</div><div class="value green" id="dash-ganancias">$ 0</div></div>
+          <div class="stat-card"><div class="label">Pérdidas</div><div class="value red" id="dash-perdidas">$ 0</div></div>
         </div>
         <button class="btn btn-primary btn-block" onclick="abrirNuevoPrestamo(null)" style="margin-bottom:12px">+ Nuevo Préstamo</button>
         <div class="section">
@@ -377,6 +378,7 @@
           <div class="stat-card"><div class="label">Recuperado</div><div class="value green" id="rep-recuperado">$ 0</div></div>
           <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="rep-circulacion">$ 0</div></div>
           <div class="stat-card"><div class="label">Ganancias</div><div class="value green" id="rep-ganancias">$ 0</div></div>
+          <div class="stat-card"><div class="label">Pérdidas</div><div class="value red" id="rep-perdidas">$ 0</div></div>
         </div>
         <div class="section">
           <h3>Detalle de préstamos</h3>
@@ -844,12 +846,13 @@ function cargarDashboard() {
   getDocsParallel([db.collection('prestamos').get(), db.collection('pagos').get(), db.collection('clientes').get()], function(results) {
     var ps = results[0], pgs = results[1], clientes = results[2];
     mostrarLoading(false);
-    var prestadoMes = 0, recuperadoMes = 0, circulacion = 0, gananciasMes = 0;
+    var prestadoMes = 0, recuperadoMes = 0, circulacion = 0, gananciasMes = 0, perdidas = 0;
     var pagosProcessed = [];
     ps.forEach(function(p) {
       var fi = desglosarFecha(p.fecha_inicio);
       if (fi.mes === mes && fi.anio === anio) prestadoMes += p.monto;
       if (p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable') circulacion += p.total;
+      if (p.estado_cobro === 'incobrable') perdidas += p.total;
     });
     pgs.forEach(function(pg) {
       var fp = desglosarFecha(pg.fecha);
@@ -870,6 +873,7 @@ function cargarDashboard() {
     document.getElementById('dash-recuperado').textContent = pesos(recuperadoMes);
     document.getElementById('dash-circulacion').textContent = pesos(circulacion);
     document.getElementById('dash-ganancias').textContent = pesos(gananciasMes);
+    document.getElementById('dash-perdidas').textContent = pesos(perdidas);
     var html = '';
     if (pagosProcessed.length) {
       pagosProcessed.forEach(function(u) {
@@ -1252,11 +1256,17 @@ function avanzarEstadoCobro(btn, id) {
     var item = estadoRow.closest('.vencido-item');
     var total = parseFloat(btn.getAttribute('data-total')) || 0;
     if (item) {
+      var alertaDiv = item.closest('.alerta');
+      var body = alertaDiv ? alertaDiv.querySelector('.accordion-body') : null;
       item.remove();
-      var accordionBody = document.querySelector('#alertas-section .accordion-body');
-      if (accordionBody && !accordionBody.querySelector('.vencido-item')) {
-        var alertaDiv = accordionBody.closest('.alerta');
-        if (alertaDiv) alertaDiv.remove();
+      if (body) {
+        var restantes = body.querySelectorAll('.vencido-item').length;
+        var strong = alertaDiv.querySelector('.body > strong');
+        if (strong) {
+          var sufijo = restantes === 1 ? '' : 's';
+          strong.childNodes[0].textContent = restantes + ' vencido' + sufijo + ' ';
+        }
+        if (restantes === 0) alertaDiv.remove();
       }
     }
     if (total > 0) {
@@ -1265,6 +1275,12 @@ function avanzarEstadoCobro(btn, id) {
         var txt = el.textContent.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
         var actual = parseFloat(txt) || 0;
         el.textContent = pesos(Math.max(0, actual - total));
+      }
+      var el2 = document.getElementById('dash-perdidas');
+      if (el2) {
+        var txt2 = el2.textContent.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+        var actual2 = parseFloat(txt2) || 0;
+        el2.textContent = pesos(actual2 + total);
       }
     }
     actualizarBadgePrestamos();
@@ -1451,7 +1467,7 @@ function cargarReporte() {
     var ps = results[0], pgs = results[1], clientes = results[2];
     var cmap = {};
     clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-    var prestado = 0, recuperado = 0, ganancias = 0, circulacion = 0;
+    var prestado = 0, recuperado = 0, ganancias = 0, circulacion = 0, perdidas = 0;
     var detalle = [];
     ps.forEach(function(p) {
       var fi = desglosarFecha(p.fecha_inicio);
@@ -1460,6 +1476,7 @@ function cargarReporte() {
         detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, estado_cobro: p.estado_cobro || '', fecha: p.fecha_inicio });
       }
       if (p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable') circulacion += p.total;
+      if (p.estado_cobro === 'incobrable') perdidas += p.total;
     });
     pgs.forEach(function(pg) {
       var fp = desglosarFecha(pg.fecha);
@@ -1473,6 +1490,7 @@ function cargarReporte() {
     document.getElementById('rep-recuperado').textContent = pesos(recuperado);
     document.getElementById('rep-circulacion').textContent = pesos(circulacion);
     document.getElementById('rep-ganancias').textContent = pesos(ganancias);
+    document.getElementById('rep-perdidas').textContent = pesos(perdidas);
     var html = '';
     if (detalle.length) {
       detalle.forEach(function(p) {
