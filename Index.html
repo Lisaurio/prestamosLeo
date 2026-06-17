@@ -1090,7 +1090,8 @@ function eliminarPrestamo(id) {
       mostrarLoading(false);
       actualizarBadgePrestamos();
       var _r = msgExito('Préstamo eliminado'); toast(_r.msg, _r.tipo);
-      navigate('prestamos');
+      if (_currentPage === 'reportes') cargarReporte();
+      else navigate('prestamos');
     }).catch(function(err) {
       mostrarLoading(false);
       toast(err.message, 'error');
@@ -1226,7 +1227,7 @@ function cargarReporte() {
       var fi = new Date(p.fecha_inicio);
       if (fi.getMonth() === mes && fi.getFullYear() === anio) {
         prestado += p.monto;
-        detalle.push({ cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, fecha: p.fecha_inicio });
+        detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, fecha: p.fecha_inicio });
       }
       if (p.estado === 'Pendiente') circulacion += p.total;
     });
@@ -1246,7 +1247,7 @@ function cargarReporte() {
     if (detalle.length) {
       detalle.forEach(function(p) {
         var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
-        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right" style="display:flex;align-items:center;gap:6px"><span class="status ' + cls + '">' + p.estado + '</span><button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;color:var(--danger)" onclick="eliminarPrestamo(\'' + p.id + '\');event.stopPropagation()" title="Eliminar">🗑️</button></div></div>';
       });
     } else {
       html = '<div class="empty"><div class="icon">📭</div><p>Sin préstamos en este período</p></div>';
