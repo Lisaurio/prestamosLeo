@@ -126,6 +126,7 @@
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
     .form-group input, .form-group select, .form-group textarea { width: 100%; max-width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; transition: border .2s; background: var(--surface); color: var(--text); }
+    .form-group input[type="date"] { min-width: 0; }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
     .form-group textarea { resize: vertical; min-height: 60px; }
     .plazo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
@@ -220,6 +221,7 @@
           <div class="stat-card"><div class="label">En Circulación</div><div class="value orange" id="dash-circulacion">$ 0</div></div>
           <div class="stat-card"><div class="label">Ganancias (Mes)</div><div class="value green" id="dash-ganancias">$ 0</div></div>
         </div>
+        <button class="btn btn-primary btn-block" onclick="abrirNuevoPrestamo(null)" style="margin-bottom:12px">+ Nuevo Préstamo</button>
         <div class="section">
           <h3>Últimos cobros</h3>
           <div id="dash-ultimos"><div class="empty"><div class="icon">📭</div><p>Sin movimientos este mes</p></div></div>
@@ -316,9 +318,12 @@
           <form id="form-prestamo" onsubmit="return guardarPrestamo(event)">
             <div class="form-group">
               <label>Cliente *</label>
-              <select id="prestamo-cliente" required onchange="onCambioCliente()">
-                <option value="">Seleccionar cliente...</option>
-              </select>
+              <div style="display:flex;gap:8px">
+                <select id="prestamo-cliente" required onchange="onCambioCliente()" style="flex:1">
+                  <option value="">Seleccionar cliente...</option>
+                </select>
+                <button type="button" onclick="irAClienteDesdePrestamo()" style="background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);min-width:44px;font-size:20px;cursor:pointer">+</button>
+              </div>
             </div>
             <div id="prestamo-cliente-info" style="display:none" class="resumen-card"></div>
             <div class="form-group">
@@ -561,6 +566,7 @@ var _clienteActual = null;
 var _filtroPrestamos = 'pendientes';
 var _currentPage = 'dashboard';
 var _notifiedIds = {};
+var _volverAPrestamo = false;
 
 function mostrarLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
 
@@ -881,8 +887,9 @@ function cargarClientes(cb) {
     mostrarLoading(false);
     _clientes = results[0];
     var ps = results[1];
-    var pendientes = {};
+    var pendientes = {}, incobrables = {};
     ps.forEach(function(p) {
+      if (p.estado_cobro === 'incobrable') incobrables[p.cliente_id] = true;
       if (p.estado !== 'Pendiente') return;
       if (!pendientes[p.cliente_id]) pendientes[p.cliente_id] = { count: 0, total: 0 };
       pendientes[p.cliente_id].count++;
@@ -891,6 +898,7 @@ function cargarClientes(cb) {
     _clientes.forEach(function(c) {
       c.total_prestamos = pendientes[c.id] ? pendientes[c.id].count : 0;
       c.pendiente = pendientes[c.id] ? pendientes[c.id].total : 0;
+      c.es_incobrable = incobrables[c.id] || false;
     });
     renderClientes();
     if (cb) cb();
@@ -908,10 +916,12 @@ function renderClientes() {
   } else {
     f.forEach(function(c) {
       var badge = '';
-      if (c.pendiente > 0) badge = '<span class="status pendiente">' + pesos(c.pendiente) + '</span>';
+      if (c.es_incobrable) badge = '<span class="status pendiente" style="background:var(--danger-bg);color:var(--danger)">Incobrable ⛔</span>';
+      else if (c.pendiente > 0) badge = '<span class="status pendiente">' + pesos(c.pendiente) + '</span>';
       else if (c.total_prestamos > 0) badge = '<span class="status pagado">Pagado</span>';
-      html += '<div class="list-item" onclick="verCliente(\'' + c.id + '\')">';
-      html += '<div class="info"><div class="name">' + esc(c.nombre) + '</div><div class="sub">📱 ' + esc(c.telefono || '-') + ' · ' + c.total_prestamos + ' préstamos</div></div>';
+      var estilo = c.es_incobrable ? ' style="background:var(--danger-bg);border-radius:var(--radius-sm);margin-bottom:4px;border:1px solid rgba(220,38,38,.2)"' : '';
+      html += '<div class="list-item" onclick="verCliente(\'' + c.id + '\')"' + estilo + '>';
+      html += '<div class="info"><div class="name">' + esc(c.nombre) + (c.es_incobrable ? ' ⛔' : '') + '</div><div class="sub">📱 ' + esc(c.telefono || '-') + ' · ' + c.total_prestamos + ' préstamos</div></div>';
       html += '<div class="right">' + badge + '</div></div>';
     });
   }
@@ -1002,12 +1012,19 @@ function guardarCliente(e) {
   if (!data.nombre) { btn._enviando = false; toast('El nombre es obligatorio', 'error'); return; }
   mostrarLoading(true);
   var prom = id ? db.doc('clientes/' + id).update(data) : (data.fecha_registro = new Date().toISOString().split('T')[0], db.collection('clientes').add(data));
-  prom.then(function() {
+  prom.then(function(ref) {
     btn._enviando = false;
     mostrarLoading(false);
     var _r = msgExito('Cliente guardado'); toast(_r.msg, _r.tipo);
-    _clientes = [];
-    navigate('clientes');
+    if (_volverAPrestamo) {
+      _volverAPrestamo = false;
+      _clientes = [];
+      var newId = (ref && ref.id) ? ref.id : id;
+      abrirNuevoPrestamo(newId);
+    } else {
+      _clientes = [];
+      navigate('clientes');
+    }
   }).catch(function(err) {
     btn._enviando = false;
     mostrarLoading(false);
@@ -1082,6 +1099,11 @@ function verCliente(id) {
 
 function irANuevoPrestamo() {
   abrirNuevoPrestamo(_clienteActual ? _clienteActual.id : null);
+}
+
+function irAClienteDesdePrestamo() {
+  _volverAPrestamo = true;
+  abrirNuevoCliente();
 }
 
 function volverDeNuevoPrestamo() {
@@ -1169,11 +1191,12 @@ function verPrestamo(id) {
     var ecLabel = { 'primer_aviso': '1er Aviso', 'segundo_aviso': '2do Aviso', 'tercer_aviso': '3er Aviso', 'incobrable': 'Incobrable' };
     if (ec) html += '<div class="cliente-info-item"><div class="lbl">Estado cobro</div><div>' + (ecLabel[ec] || ec) + '</div></div>';
     html += '</div>';
-    var badge = p.estado === 'Pagado'
-      ? '<span class="status pagado" style="font-size:16px;padding:6px 16px">Pagado ✅</span>'
-      : '<span class="status pendiente" style="font-size:16px;padding:6px 16px">Pendiente ⏳</span>';
+    var badge;
+    if (p.estado === 'Pagado') badge = '<span class="status pagado" style="font-size:16px;padding:6px 16px">Pagado ✅</span>';
+    else if (p.estado_cobro === 'incobrable') badge = '<span class="status pendiente" style="font-size:16px;padding:6px 16px;background:var(--danger-bg);color:var(--danger)">Incobrable ⛔</span>';
+    else badge = '<span class="status pendiente" style="font-size:16px;padding:6px 16px">Pendiente ⏳</span>';
     html += '<div style="text-align:center;margin-bottom:12px">' + badge + '</div>';
-    if (p.estado !== 'Pagado') {
+    if (p.estado !== 'Pagado' && p.estado_cobro !== 'incobrable') {
       html += '<div style="display:flex;gap:8px;margin-bottom:8px">';
       html += '<button class="btn btn-primary btn-block" onclick="abrirEditarPrestamo(\'' + id + '\')">✏ Editar</button>';
       html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Pagado</button>';
@@ -1277,7 +1300,8 @@ function abrirNuevoPrestamo(clienteId) {
       sel.innerHTML += '<option value="' + c.id + '" ' + s + '>' + esc(c.nombre) + (c.telefono ? ' - ' + esc(c.telefono) : '') + '</option>';
     });
     document.getElementById('prestamo-monto').value = '';
-    document.getElementById('prestamo-fecha').value = new Date().toISOString().split('T')[0];
+    var hoy = new Date();
+    document.getElementById('prestamo-fecha').value = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
     if (clienteId) onCambioCliente();
   });
 }
@@ -1367,7 +1391,7 @@ function guardarPrestamo(e) {
     btn._enviando = false;
     mostrarLoading(false);
     actualizarBadgePrestamos();
-    toast('Préstamo registrado ✅', 'success');
+    var _r = msgExito('Préstamo registrado'); toast(_r.msg, _r.tipo);
     navigate('prestamos');
   }).catch(function(err) {
     btn._enviando = false;
