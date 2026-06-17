@@ -5,6 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Mis Préstamos</title>
+  <link rel="manifest" id="manifest-link">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563eb'/%3E%3Ctext x='50' y='72' font-size='64' font-weight='bold' text-anchor='middle' fill='white' font-family='sans-serif'%3E%24%3C/text%3E%3C/svg%3E">
   <style>
     :root {
       --primary: #2563eb;
@@ -439,6 +441,23 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+/* PWA manifest via Blob */
+(function() {
+  var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#2563eb"/><text x="50" y="72" font-size="64" font-weight="bold" text-anchor="middle" fill="white" font-family="sans-serif">$</text></svg>';
+  var iconData = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+  var manifest = {
+    name: "Mis Pr\u00e9stamos",
+    short_name: "Pr\u00e9stamos",
+    start_url: "Index.html",
+    display: "standalone",
+    background_color: "#0f172a",
+    theme_color: "#2563eb",
+    icons: [{ src: iconData, sizes: "192x192", type: "image/svg+xml" }]
+  };
+  var blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  document.getElementById('manifest-link').href = URL.createObjectURL(blob);
+})();
+
 /* Offline persistence */
 var _offline = !navigator.onLine;
 db.enablePersistence({synchronizeTabs:true}).catch(function(err) {
@@ -667,7 +686,7 @@ function cargarAlertas() {
       var info = { cliente_id: p.cliente_id, total: p.total, fecha_vence: p.fecha_vence, dias: diff };
       if (diff < 0) vencidos.push(info);
       else if (diff === 0) venceHoy.push(info);
-      else if (diff <= 3) proximos.push(info);
+      else if (diff <= 2) proximos.push(info);
     });
     var html = '';
     if (vencidos.length) {
