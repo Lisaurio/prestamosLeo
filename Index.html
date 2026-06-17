@@ -125,7 +125,7 @@
     .fab:active { transform: scale(.92); }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; transition: border .2s; background: var(--surface); }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; max-width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-sm); outline: none; transition: border .2s; background: var(--surface); color: var(--text); }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
     .form-group textarea { resize: vertical; min-height: 60px; }
     .plazo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
@@ -298,6 +298,7 @@
         <div class="tabs" id="prestamos-tabs">
           <button class="tab active" data-filtro="pendientes" onclick="filtrarPrestamos('pendientes')">Pendientes</button>
           <button class="tab" data-filtro="pagados" onclick="filtrarPrestamos('pagados')">Pagados</button>
+          <button class="tab" data-filtro="incobrables" onclick="filtrarPrestamos('incobrables')">Incobrables</button>
           <button class="tab" data-filtro="todos" onclick="filtrarPrestamos('todos')">Todos</button>
         </div>
         <div id="prestamos-list"></div>
@@ -738,7 +739,7 @@ function cargarAlertas() {
     var hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     var vencidos = [], venceHoy = [], proximos = [];
     ps.forEach(function(p) {
-      if (p.estado !== 'Pendiente') return;
+      if (p.estado !== 'Pendiente' || p.estado_cobro === 'incobrable') return;
       var partes = p.fecha_vence.split('-');
       var vence = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
       var diff = Math.ceil((vence - hoy) / (1000 * 60 * 60 * 24));
@@ -764,14 +765,29 @@ function cargarAlertas() {
           if (!telNum.startsWith('54')) telNum = '54' + telNum;
           waLink = 'https://wa.me/' + telNum + '?text=' + encodeURIComponent(texto);
         }
+        var ec = v.estado_cobro || '';
         html += '<div class="vencido-item" style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.15)">';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">';
         html += '<div style="flex:1;min-width:0">';
         html += '<div style="font-weight:500;font-size:14px">' + esc(nom) + '</div>';
         html += '<div style="font-size:12px;opacity:.85">' + pesos(v.total) + ' · venció hace ' + Math.abs(v.dias) + ' día' + (Math.abs(v.dias) > 1 ? 's' : '') + '</div>';
+        html += '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">';
+        var estadosArr = [
+          { k: 'primer_aviso', lbl: '1er' },
+          { k: 'segundo_aviso', lbl: '2do' },
+          { k: 'tercer_aviso', lbl: '3er' },
+          { k: 'incobrable', lbl: 'Incob.' }
+        ];
+        estadosArr.forEach(function(est) {
+          var activo = ec === est.k;
+          if (ec === 'incobrable' && est.k === 'incobrable') activo = true;
+          var color = est.k === 'incobrable' ? (activo ? 'var(--danger)' : 'rgba(255,255,255,.15)') : (activo ? 'var(--primary)' : 'rgba(255,255,255,.15)');
+          html += '<span onclick="event.stopPropagation();actualizarEstadoCobro(\'' + v.id + '\',\'' + est.k + '\')" style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500;cursor:pointer;background:' + color + ';color:' + (activo ? '#fff' : 'inherit') + '">' + est.lbl + '</span>';
+        });
+        html += '</div>';
         html += '</div>';
         if (tel) {
-          html += '<a href="' + waLink + '" target="_blank" style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap;flex-shrink:0">';
+          html += '<a href="' + waLink + '" target="_blank" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;padding:7px 10px;border-radius:6px;font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap;flex-shrink:0">';
           html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
           html += 'Reclamar';
           html += '</a>';
@@ -1052,9 +1068,11 @@ function verCliente(id) {
     } else {
       var h = '';
       ps.forEach(function(p) {
-        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
+        var cls = p.estado === 'Pagado' ? 'pagado' : (p.estado_cobro === 'incobrable' ? 'pagado' : 'pendiente');
         var label = p.estado === 'Pagado' ? 'Pagado el ' + p.fecha_pago : 'Vence: ' + p.fecha_vence;
-        h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right"><span class="status ' + cls + '">' + p.estado + '</span></div></div>';
+        var ecTag = ''; var ecLbl = { 'primer_aviso': '1er', 'segundo_aviso': '2do', 'tercer_aviso': '3er', 'incobrable': '✗' };
+        if (p.estado_cobro) ecTag = '<span class="status pendiente" style="font-size:10px;padding:1px 6px;margin-right:4px">' + (ecLbl[p.estado_cobro] || p.estado_cobro) + '</span>';
+        h += '<div class="list-item"><div class="info"><div class="name">' + pesos(p.monto) + ' → ' + pesos(p.total) + '</div><div class="sub">' + label + ' · ' + p.dias_plazo + ' días</div></div><div class="right">' + ecTag + '<span class="status ' + cls + '">' + p.estado + '</span></div></div>';
       });
       document.getElementById('cliente-prestamos-list').innerHTML = h;
     }
@@ -1080,8 +1098,8 @@ function filtrarPrestamos(f) {
 
 function actualizarBadgePrestamos() {
   db.collection('prestamos').where('estado', '==', 'Pendiente').get().then(function(snap) {
+    var n = snap.docs.filter(function(d) { return d.data().estado_cobro !== 'incobrable'; }).length;
     var badge = document.getElementById('badge-prestamos');
-    var n = snap.docs.length;
     if (n > 0) {
       badge.textContent = n > 99 ? '99+' : n;
       badge.style.display = 'flex';
@@ -1098,8 +1116,9 @@ function cargarPrestamos() {
     var ps = results[0], clientes = results[1];
     var cmap = {};
     clientes.forEach(function(c) { cmap[c.id] = c.nombre; });
-    if (_filtroPrestamos === 'pendientes') ps = ps.filter(function(p) { return p.estado === 'Pendiente'; });
+    if (_filtroPrestamos === 'pendientes') ps = ps.filter(function(p) { return p.estado === 'Pendiente' && p.estado_cobro !== 'incobrable'; });
     else if (_filtroPrestamos === 'pagados') ps = ps.filter(function(p) { return p.estado === 'Pagado'; });
+    else if (_filtroPrestamos === 'incobrables') ps = ps.filter(function(p) { return p.estado_cobro === 'incobrable'; });
     if (!ps.length) {
       document.getElementById('prestamos-list').innerHTML = '<div class="section"><div class="empty"><div class="icon">📭</div><p>No hay préstamos ' + _filtroPrestamos + '</p></div></div>';
       return;
@@ -1109,6 +1128,8 @@ function cargarPrestamos() {
       var rightHtml;
       if (p.estado === 'Pagado') {
         rightHtml = '<span class="status pagado">Pagado</span>';
+      } else if (p.estado_cobro === 'incobrable') {
+        rightHtml = '<span class="status pagado" style="background:var(--danger-bg);color:var(--danger)">Incobrable</span>';
       } else {
         rightHtml = '<button class="btn btn-success btn-sm" onclick="event.stopPropagation();pagarPrestamo(\'' + p.id + '\')">✔ Pagado</button>';
       }
@@ -1144,6 +1165,9 @@ function verPrestamo(id) {
     if (p.estado === 'Pagado') {
       html += '<div class="cliente-info-item"><div class="lbl">Pagado el</div><div style="color:var(--success);font-weight:600">' + p.fecha_pago + '</div></div>';
     }
+    var ec = p.estado_cobro || '';
+    var ecLabel = { 'primer_aviso': '1er Aviso', 'segundo_aviso': '2do Aviso', 'tercer_aviso': '3er Aviso', 'incobrable': 'Incobrable' };
+    if (ec) html += '<div class="cliente-info-item"><div class="lbl">Estado cobro</div><div>' + (ecLabel[ec] || ec) + '</div></div>';
     html += '</div>';
     var badge = p.estado === 'Pagado'
       ? '<span class="status pagado" style="font-size:16px;padding:6px 16px">Pagado ✅</span>'
@@ -1184,6 +1208,13 @@ function whatsappUrl(c, plantilla) {
   return 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
 }
 
+function actualizarEstadoCobro(id, estado) {
+  updateDoc('prestamos/' + id, { estado_cobro: estado }, function() {
+    toast(estado === 'incobrable' ? 'Marcado como incobrable' : 'Estado actualizado a ' + estado, 'success');
+    if (_currentPage === 'dashboard') cargarDashboard();
+  });
+}
+
 function pagarPrestamo(id) {
   if (!confirm('¿Marcar este préstamo como pagado?')) return;
   getDoc('prestamos/' + id, function(p) {
@@ -1202,22 +1233,31 @@ function pagarPrestamo(id) {
 }
 
 function eliminarPrestamo(id) {
-  if (!confirm('¿Eliminar este préstamo?\n\nLos pagos asociados también se eliminarán.')) return;
-  if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
   mostrarLoading(true);
-  getColFilter('pagos', 'prestamo_id', '==', id, function(pagos) {
-    var ops = [];
-    pagos.forEach(function(pg) { ops.push(db.doc('pagos/' + pg.id).delete()); });
-    ops.push(db.doc('prestamos/' + id).delete());
-    Promise.all(ops).then(function() {
-      mostrarLoading(false);
-      actualizarBadgePrestamos();
-      var _r = msgExito('Préstamo eliminado'); toast(_r.msg, _r.tipo);
-      if (_currentPage === 'reportes') cargarReporte();
-      else navigate('prestamos');
-    }).catch(function(err) {
-      mostrarLoading(false);
-      toast(err.message, 'error');
+  getDocsParallel([db.doc('prestamos/' + id).get(), db.collection('clientes').get()], function(results) {
+    mostrarLoading(false);
+    var p = results[0];
+    if (!p) { toast('Préstamo no encontrado', 'error'); return; }
+    var clientes = results[1] || [];
+    var c = clientes.find(function(x) { return x.id == p.cliente_id; });
+    var nom = c ? c.nombre : 'Cliente eliminado';
+    if (!confirm('Eliminar préstamo:\n\nCliente: ' + nom + '\nMonto: ' + pesos(p.monto) + '\nTotal: ' + pesos(p.total) + '\n\nLos pagos asociados también se eliminarán.')) return;
+    if (!confirm('¿Estás seguro? No se puede deshacer.')) return;
+    mostrarLoading(true);
+    getColFilter('pagos', 'prestamo_id', '==', id, function(pagos) {
+      var ops = [];
+      pagos.forEach(function(pg) { ops.push(db.doc('pagos/' + pg.id).delete()); });
+      ops.push(db.doc('prestamos/' + id).delete());
+      Promise.all(ops).then(function() {
+        mostrarLoading(false);
+        actualizarBadgePrestamos();
+        var _r = msgExito('Préstamo eliminado'); toast(_r.msg, _r.tipo);
+        if (_currentPage === 'reportes') cargarReporte();
+        else navigate('prestamos');
+      }).catch(function(err) {
+        mostrarLoading(false);
+        toast(err.message, 'error');
+      });
     });
   });
 }
@@ -1321,6 +1361,7 @@ function guardarPrestamo(e) {
     fecha_vence: fechaVence.toISOString().split('T')[0],
     fecha_pago: '',
     estado: 'Pendiente',
+    estado_cobro: '',
     notas: ''
   }).then(function() {
     btn._enviando = false;
@@ -1350,7 +1391,7 @@ function cargarReporte() {
       var fi = desglosarFecha(p.fecha_inicio);
       if (fi.mes === mes && fi.anio === anio) {
         prestado += p.monto;
-        detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, fecha: p.fecha_inicio });
+        detalle.push({ id: p.id, cliente: cmap[p.cliente_id] || '?', monto: p.monto, total: p.total, estado: p.estado, estado_cobro: p.estado_cobro || '', fecha: p.fecha_inicio });
       }
       if (p.estado === 'Pendiente') circulacion += p.total;
     });
@@ -1369,8 +1410,10 @@ function cargarReporte() {
     var html = '';
     if (detalle.length) {
       detalle.forEach(function(p) {
-        var cls = p.estado === 'Pagado' ? 'pagado' : 'pendiente';
-        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right" style="display:flex;align-items:center;gap:6px"><span class="status ' + cls + '">' + p.estado + '</span><button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;color:var(--danger)" onclick="eliminarPrestamo(\'' + p.id + '\');event.stopPropagation()" title="Eliminar">🗑️</button></div></div>';
+        var cls = p.estado === 'Pagado' ? 'pagado' : (p.estado_cobro === 'incobrable' ? 'pagado' : 'pendiente');
+        var ecLabel = { 'primer_aviso': '1er', 'segundo_aviso': '2do', 'tercer_aviso': '3er', 'incobrable': '✗' };
+        var ecBadge = p.estado_cobro ? '<span class="status ' + (p.estado_cobro === 'incobrable' ? 'pagado' : 'pendiente') + '" style="font-size:10px;padding:1px 6px">' + (ecLabel[p.estado_cobro] || p.estado_cobro) + '</span>' : '';
+        html += '<div class="list-item"><div class="info"><div class="name">' + esc(p.cliente) + '</div><div class="sub">' + pesos(p.monto) + ' → ' + pesos(p.total) + ' · ' + p.fecha + '</div></div><div class="right" style="display:flex;align-items:center;gap:4px">' + ecBadge + '<span class="status ' + cls + '">' + p.estado + '</span><button style="background:none;border:none;font-size:16px;cursor:pointer;padding:4px;color:var(--danger)" onclick="eliminarPrestamo(\'' + p.id + '\');event.stopPropagation()" title="Eliminar">🗑️</button></div></div>';
       });
     } else {
       html = '<div class="empty"><div class="icon">📭</div><p>Sin préstamos en este período</p></div>';
