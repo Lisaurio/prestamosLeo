@@ -1407,7 +1407,8 @@ function calcularSimulacion() {
     return;
   }
   var dias = parseInt(plazoEl.value);
-  var tasa = dias === 7 ? 40 : dias === 15 ? 60 : 80;
+  var cfg = window._config || {};
+  var tasa = dias === 7 ? (cfg.tasa_7d || 40) : dias === 15 ? (cfg.tasa_15d || 60) : (cfg.tasa_30d || 80);
   var total = monto + (monto * tasa / 100);
   document.getElementById('sim-r-monto').textContent = pesos(monto);
   document.getElementById('sim-r-tasa').textContent = tasa + '%';
