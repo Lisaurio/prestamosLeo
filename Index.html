@@ -786,7 +786,7 @@ function cargarAlertas(cb) {
         html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">';
         html += '<span style="font-size:12px;opacity:.8">Estado: <strong>' + (estadoLabels[ec] || 'Pendiente') + '</strong></span>';
         if (!isInc && nextEstado) {
-          html += '<button data-ec="' + ec + '" onclick="event.stopPropagation();avanzarEstadoCobro(this,\'' + v.id + '\')" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer">' + (nextLabels[ec] || 'Avanzar \u2192') + '</button>';
+          html += '<button data-ec="' + ec + '" data-total="' + v.total + '" onclick="event.stopPropagation();avanzarEstadoCobro(this,\'' + v.id + '\')" style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;cursor:pointer">' + (nextLabels[ec] || 'Avanzar \u2192') + '</button>';
         } else if (isInc) {
           html += '<span style="font-size:11px;padding:4px 8px;border-radius:4px;background:var(--danger-bg);color:var(--danger);font-weight:500">\u26D4 Incobrable</span>';
         }
@@ -1203,6 +1203,8 @@ function verPrestamo(id) {
       html += '<button class="btn btn-primary btn-block" onclick="abrirEditarPrestamo(\'' + id + '\')">✏ Editar</button>';
       html += '<button class="btn btn-success btn-block" onclick="pagarPrestamo(\'' + id + '\')">✔ Pagado</button>';
       html += '</div>';
+    } else if (p.estado_cobro === 'incobrable' && p.estado !== 'Pagado') {
+      html += '<button class="btn btn-warning btn-block" onclick="pagarPrestamo(\'' + id + '\',true)" style="background:var(--warning, #f59e0b);color:#fff;font-weight:600">✔ Marcar como Pagado (Incobrable)</button>';
     }
     html += '<button class="btn btn-danger btn-block" onclick="eliminarPrestamo(\'' + id + '\')">🗑️ Eliminar préstamo</button>';
     document.getElementById('prestamo-detalle-card').innerHTML = html;
@@ -1247,7 +1249,25 @@ function avanzarEstadoCobro(btn, id) {
   if (strong) strong.textContent = estadoLabels[nextEstado];
   btn.setAttribute('data-ec', nextEstado);
   if (isInc) {
-    btn.outerHTML = '<span style="font-size:11px;padding:4px 8px;border-radius:4px;background:var(--danger-bg);color:var(--danger);font-weight:500">\u26D4 Incobrable</span>';
+    var item = estadoRow.closest('.vencido-item');
+    var total = parseFloat(btn.getAttribute('data-total')) || 0;
+    if (item) {
+      item.remove();
+      var accordionBody = document.querySelector('#alertas-section .accordion-body');
+      if (accordionBody && !accordionBody.querySelector('.vencido-item')) {
+        var alertaDiv = accordionBody.closest('.alerta');
+        if (alertaDiv) alertaDiv.remove();
+      }
+    }
+    if (total > 0) {
+      var el = document.getElementById('dash-circulacion');
+      if (el) {
+        var txt = el.textContent.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+        var actual = parseFloat(txt) || 0;
+        el.textContent = pesos(Math.max(0, actual - total));
+      }
+    }
+    actualizarBadgePrestamos();
   } else {
     btn.textContent = nextLabels[nextEstado];
   }
@@ -1256,13 +1276,17 @@ function avanzarEstadoCobro(btn, id) {
   });
 }
 
-function pagarPrestamo(id) {
-  if (!confirm('¿Marcar este préstamo como pagado?')) return;
+function pagarPrestamo(id, esIncobrable) {
+  if (esIncobrable) {
+    if (!confirm('⚠️ ATENCIÓN: Este préstamo está marcado como INCOBRABLE.\n\n¿Estás seguro de querer marcarlo como PAGADO?\n\nEsta acción no se puede deshacer.')) return;
+  } else {
+    if (!confirm('¿Marcar este préstamo como pagado?')) return;
+  }
   getDoc('prestamos/' + id, function(p) {
     if (!p) { toast('Préstamo no encontrado', 'error'); return; }
     if (p.estado === 'Pagado') { toast('Ya está pagado', 'error'); return; }
     var hoy = new Date().toISOString().split('T')[0];
-    updateDoc('prestamos/' + id, { estado: 'Pagado', fecha_pago: hoy }, function() {
+    updateDoc('prestamos/' + id, { estado: 'Pagado', fecha_pago: hoy, estado_cobro: '' }, function() {
       addDoc('pagos', { prestamo_id: id, monto: p.total, fecha: hoy }, function() {
         actualizarBadgePrestamos();
         toast(_offline ? 'Cambio guardado 📦 — se sincronizará cuando haya conexión' : 'Préstamo marcado como pagado ✅', _offline ? 'warning' : 'success');
